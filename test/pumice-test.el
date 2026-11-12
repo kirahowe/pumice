@@ -804,6 +804,42 @@
       (should (= 2 (count-windows)))
       (should (eq (get-buffer pumice-tree-buffer) (window-buffer tree))))))
 
+(ert-deftest pumice-test-panel-keeps-up-from-the-tree ()
+  "A rename made from the tree reaches the panel without leaving the tree."
+  (pumice-test-with-tree "Home.md"
+    (pumice-panel-toggle)
+    (unwind-protect
+        (progn
+          (should (eq (selected-window) (get-buffer-window pumice-tree-buffer)))
+          (with-current-buffer pumice-panel-buffer
+            (should (string-prefix-p "Home\n" (buffer-string)))
+            (should (string-search "  Weekly Review\n" (buffer-string))))
+          (pumice-tree-rename (expand-file-name "Weekly Review.md" root)
+                              "Review week")
+          (pumice-panel--sync)
+          (with-current-buffer pumice-panel-buffer
+            (should (string-search "  Review week\n" (buffer-string)))
+            (should-not (string-search "Weekly Review" (buffer-string)))))
+      (when (get-buffer-window pumice-panel-buffer) (pumice-panel-toggle))
+      (kill-buffer pumice-panel-buffer))))
+
+(ert-deftest pumice-test-tree-opened-from-the-panel-finds-the-note ()
+  "Opened while the panel is selected, the tree still goes to the note."
+  (pumice-test-with-vault
+    (save-window-excursion
+      (find-file (expand-file-name "Notes/Work/Trellis.md" root))
+      (delete-other-windows)
+      (pumice-panel-focus)
+      (unwind-protect
+          (progn
+            (pumice-tree)
+            (should (eq (selected-window)
+                        (get-buffer-window pumice-tree-buffer)))
+            (should (looking-at-p "      Trellis$")))
+        (when (get-buffer pumice-tree-buffer) (kill-buffer pumice-tree-buffer))
+        (when (get-buffer-window pumice-panel-buffer) (pumice-panel-toggle))
+        (kill-buffer pumice-panel-buffer)))))
+
 ;;; Evil
 
 (declare-function evil-local-mode "evil-core")

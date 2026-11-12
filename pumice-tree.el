@@ -217,16 +217,17 @@ carries its absolute path as `pumice-path', and folders `pumice-dir' too."
       (setq dir (file-name-directory (directory-file-name dir))))))
 
 (defun pumice-tree--sync (&optional force)
-  "Bring the tree up to date with the selected window and the index.
-When the selected window shows a different note than before, unfold the
-way to it and move there.  With FORCE, redraw whatever happened."
+  "Bring the tree up to date with the note being read and the index.
+That note is the selected window's, or the main window's while the tree or
+the panel is selected.  When it is a different note than before, unfold
+the way to it and move there.  With FORCE, redraw whatever happened."
   (let* ((tree (get-buffer pumice-tree-buffer))
          (window (and tree (get-buffer-window tree t))))
     (if (not window)
         (when pumice-tree--timer
           (cancel-timer pumice-tree--timer)
           (setq pumice-tree--timer nil))
-      (let* ((path (buffer-file-name (window-buffer (selected-window))))
+      (let* ((path (buffer-file-name (window-buffer (pumice--main-window))))
              (root (and path (pumice-root-for path)))
              (vault (pumice-vault-at
                      (or root (buffer-local-value 'pumice-local-root tree)))))

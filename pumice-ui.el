@@ -407,14 +407,16 @@ pairs shown under the label.  ITEM is what RET on that line acts on."
     (when same (forward-line (1- line)))))
 
 (defun pumice-panel--sync (&optional force)
-  "Point the panel at the selected window's note if that changed.
-With FORCE, redraw even if nothing seems to have."
+  "Point the panel at the note being read, if that changed.
+That is the selected window's note, or the main window's while the tree or
+the panel itself is selected.  With FORCE, redraw even if nothing seems to
+have changed."
   (let ((panel (get-buffer pumice-panel-buffer)))
     (if (not (and panel (get-buffer-window panel t)))
         (when pumice-panel--timer
           (cancel-timer pumice-panel--timer)
           (setq pumice-panel--timer nil))
-      (let ((path (buffer-file-name (window-buffer (selected-window)))))
+      (let ((path (buffer-file-name (window-buffer (pumice--main-window)))))
         (when-let* ((root (and path (pumice-root-for path)))
                     (vault (pumice-vault-at root))
                     (note (pumice-note-at vault path)))
