@@ -9,6 +9,11 @@
 (require 'pumice)
 (require 'pumice-cli)
 
+;; evil advises primitives.  On a native-compiling Emacs each one would
+;; start the compiler to build a trampoline, which a test run does not need.
+(defvar native-comp-enable-subr-trampolines)
+(setq native-comp-enable-subr-trampolines nil)
+
 (pumice-global-mode 1)
 
 (defconst pumice-test--files
@@ -798,6 +803,41 @@
       ;; Neither split the main window nor took over the tree's.
       (should (= 2 (count-windows)))
       (should (eq (get-buffer pumice-tree-buffer) (window-buffer tree))))))
+
+;;; Evil
+
+(ert-deftest pumice-test-evil-keys ()
+  "The optional vim keys exist in notes, the panel and the tree."
+  (skip-unless (locate-library "evil"))
+  ;; Before evil, to show the order does not matter.
+  (require 'pumice-evil)
+  (require 'evil)
+  (pumice-test-with-vault
+    (pumice-test-in-note "Home.md"
+      (evil-local-mode 1)
+      (evil-normal-state)
+      (should (eq 'pumice-evil-ret (key-binding (kbd "RET"))))
+      (should (eq 'pumice-follow (key-binding "gf")))
+      (should (eq 'pumice-daily-next (key-binding "]d")))
+      ;; RET follows a link, and off one it is still evil's RET.
+      (save-window-excursion
+        (switch-to-buffer (current-buffer))
+        (goto-char (point-min))
+        (should (= 2 (progn (pumice-evil-ret 1) (line-number-at-pos))))
+        (search-forward "[[Weekly")
+        (pumice-evil-ret)
+        (should (equal "Weekly Review.md"
+                       (file-name-nondirectory buffer-file-name)))))
+    (should (eq 'motion (evil-initial-state 'pumice-tree-mode)))
+    (should (eq 'motion (evil-initial-state 'pumice-panel-mode)))
+    (should (eq 'pumice-tree-expand
+                (lookup-key (evil-get-auxiliary-keymap
+                             pumice-tree-mode-map 'motion)
+                            "l")))
+    (should (eq 'pumice-panel-link-mention
+                (lookup-key (evil-get-auxiliary-keymap
+                             pumice-panel-mode-map 'motion)
+                            "L")))))
 
 ;;; Properties
 

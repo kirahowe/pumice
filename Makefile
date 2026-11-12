@@ -1,5 +1,8 @@
 EMACS ?= emacs
-BATCH = $(EMACS) --batch -Q -L .
+# Directories of optional packages to test against, such as evil or consult.
+# The tests that need one are skipped when it is not on the load path.
+DEPS ?=
+BATCH = $(EMACS) --batch -Q -L . $(addprefix -L ,$(DEPS))
 SOURCES = $(wildcard pumice*.el)
 
 .PHONY: all test compile checkdoc clean
