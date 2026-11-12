@@ -1,0 +1,21 @@
+#!/bin/sh
+# notes: read and change an Obsidian-format vault from the command line.
+# Runs vault-cli.el in a batch Emacs, so it needs no running Emacs and
+# no Obsidian. `notes help` lists the commands.
+
+# Follow symlinks to this file, so the Lisp files beside bin/ are found when
+# it is run through a link in ~/.local/bin.
+self=$0
+while [ -L "$self" ]; do
+  link=$(readlink "$self")
+  case $link in
+    /*) self=$link ;;
+    *) self=$(dirname "$self")/$link ;;
+  esac
+done
+lisp=$(cd "$(dirname "$self")/.." && pwd) || exit 1
+
+# A caller started from a GUI app has a minimal PATH without Homebrew on it.
+emacs=${NOTES_EMACS:-$(command -v emacs || echo /opt/homebrew/bin/emacs)}
+
+exec "$emacs" --batch -Q -L "$lisp" -l vault-cli -f vault-cli-main -- "$@"
