@@ -30,13 +30,17 @@
   :prefix "pumice-")
 
 (defcustom pumice-vault-directories nil
-  "Vault roots.  When nil, read them from `pumice-obsidian-registry'."
+  "Vault roots.
+When nil, the vaults are the ones Obsidian has opened on this computer,
+read from `pumice-obsidian-registry'.  Set this where Obsidian is not
+installed, or to choose the folders yourself.  A folder needs no .obsidian
+directory in it to be listed here."
   :type '(repeat directory))
 
-(defcustom pumice-obsidian-registry
-  "~/Library/Application Support/obsidian/obsidian.json"
-  "Obsidian's list of known vaults."
-  :type 'file)
+(defcustom pumice-obsidian-registry nil
+  "Obsidian's list of known vaults, a file called obsidian.json.
+When nil, look where Obsidian keeps it on this kind of system."
+  :type '(choice (const :tag "Where Obsidian keeps it" nil) file))
 
 (defcustom pumice-refresh-interval 2
   "Seconds for which a directory scan is trusted before rescanning."
@@ -80,9 +84,30 @@ them act on the vault they are showing.")
         (json-parse-buffer :object-type 'alist :array-type 'list
                            :null-object nil :false-object nil)))))
 
+(defun pumice--registry-candidates ()
+  "Return the places Obsidian's vault registry can be on this system."
+  (mapcar
+   (lambda (dir) (expand-file-name "obsidian/obsidian.json" dir))
+   (pcase system-type
+     ('darwin '("~/Library/Application Support"))
+     ((or 'windows-nt 'cygwin 'ms-dos)
+      (list (or (getenv "APPDATA") "~/AppData/Roaming")))
+     (_ (list (or (getenv "XDG_CONFIG_HOME") "~/.config")
+              ;; The Flatpak and Snap builds each keep a config
+              ;; directory of their own.
+              "~/.var/app/md.obsidian.Obsidian/config"
+              "~/snap/obsidian/current/.config")))))
+
+(defun pumice--registry-file ()
+  "Return the path of Obsidian's vault registry, or nil if there is none."
+  (if pumice-obsidian-registry
+      (expand-file-name pumice-obsidian-registry)
+    (seq-find #'file-readable-p (pumice--registry-candidates))))
+
 (defun pumice--registry ()
   "Return (ROOT . OPEN) pairs from Obsidian's vault registry."
-  (let ((json (pumice--read-json (expand-file-name pumice-obsidian-registry))))
+  (let ((json (and-let* ((file (pumice--registry-file)))
+                (pumice--read-json file))))
     (cl-loop for (_id . entry) in (alist-get 'vaults json)
              for path = (alist-get 'path entry)
              when (and path (file-directory-p path))

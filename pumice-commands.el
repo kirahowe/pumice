@@ -26,6 +26,7 @@
 (declare-function consult-ripgrep "consult")
 (declare-function evil-set-jump "evil-jumps")
 (declare-function org-read-date "org")
+(declare-function w32-shell-execute "w32fns.c")
 
 (defcustom pumice-log-heading "Log"
   "Heading in the daily note under which `pumice-log' files its entries."
@@ -547,14 +548,21 @@ only notes looked at."
                                    (cdr (assoc tag tags)) t)))
     (pumice--visit (pumice-note-path (car choice)))))
 
+(defun pumice--open-with-system (uri)
+  "Hand URI to the system, which knows which application it belongs to.
+`browse-url' would give it to a web browser."
+  (pcase system-type
+    ('darwin (call-process "open" nil 0 nil uri))
+    ((or 'windows-nt 'cygwin) (w32-shell-execute "open" uri))
+    (_ (call-process "xdg-open" nil 0 nil uri))))
+
 ;;;###autoload
 (defun pumice-open-in-obsidian ()
   "Open the current note in the Obsidian app."
   (interactive)
   (unless buffer-file-name (user-error "This buffer has no file"))
-  (call-process "open" nil 0 nil
-                (concat "obsidian://open?path="
-                        (url-hexify-string buffer-file-name))))
+  (pumice--open-with-system
+   (concat "obsidian://open?path=" (url-hexify-string buffer-file-name))))
 
 (provide 'pumice-commands)
 ;;; pumice-commands.el ends here

@@ -70,6 +70,88 @@
     (insert-file-contents (expand-file-name rel (pumice--root v)))
     (buffer-string)))
 
+;;; Finding vaults
+
+(ert-deftest pumice-test-registry-location ()
+  "The registry is looked for where Obsidian keeps it on each system."
+  (let ((process-environment (copy-sequence process-environment)))
+    (setenv "XDG_CONFIG_HOME" nil)
+    (setenv "APPDATA" nil)
+    (let ((system-type 'darwin))
+      (should (equal (list (expand-file-name
+                            "~/Library/Application Support/obsidian/obsidian.json"))
+                     (pumice--registry-candidates))))
+    (let ((system-type 'gnu/linux))
+      (should (equal (expand-file-name "~/.config/obsidian/obsidian.json")
+                     (car (pumice--registry-candidates))))
+      (should (= 3 (length (pumice--registry-candidates))))
+      (setenv "XDG_CONFIG_HOME" "/xdg")
+      (should (equal (expand-file-name "/xdg/obsidian/obsidian.json")
+                     (car (pumice--registry-candidates)))))
+    (let ((system-type 'windows-nt))
+      (setenv "APPDATA" "/users/me/AppData/Roaming")
+      (should (equal (list (expand-file-name
+                            "/users/me/AppData/Roaming/obsidian/obsidian.json"))
+                     (pumice--registry-candidates))))))
+
+(ert-deftest pumice-test-vaults-from-the-registry ()
+  "Vaults come from Obsidian's registry, and the open one is the default."
+  (pumice-test-with-vault
+    (let* ((other (file-name-as-directory
+                   (file-truename (make-temp-file "pumice-other" t))))
+           (registry (make-temp-file "pumice-registry" nil ".json"))
+           (pumice-vault-directories nil)
+           (pumice-obsidian-registry registry)
+           (pumice--vault-roots nil)
+           (pumice-default-root nil))
+      (unwind-protect
+          (progn
+            (with-temp-file registry
+              (insert (json-serialize
+                       `((vaults
+                          . ((a . ((path . ,(directory-file-name other))))
+                             (b . ((path . ,(directory-file-name root))
+                                   (open . t)))
+                             (c . ((path . "/no/such/folder")))))))))
+            (should (equal (list other root) (pumice-vault-roots)))
+            (should (equal root (pumice--default-root))))
+        (delete-directory other t)
+        (delete-file registry)))))
+
+(ert-deftest pumice-test-no-registry ()
+  "Without Obsidian's registry there are no vaults until some are named."
+  (let ((pumice-vault-directories nil)
+        (pumice-obsidian-registry nil)
+        (pumice--vault-roots nil)
+        (pumice-default-root nil))
+    (cl-letf (((symbol-function 'pumice--registry-candidates)
+               (lambda () '("/no/such/obsidian.json"))))
+      (should-not (pumice-vault-roots))
+      (should-error (pumice--default-root) :type 'user-error))))
+
+(ert-deftest pumice-test-a-folder-with-obsidian-settings-is-a-vault ()
+  "A file under a .obsidian folder is in a vault, registered or not."
+  (pumice-test-with-vault
+    (let ((pumice-vault-directories nil)
+          (pumice-obsidian-registry nil)
+          (pumice--vault-roots nil))
+      (cl-letf (((symbol-function 'pumice--registry-candidates)
+                 (lambda () '("/no/such/obsidian.json"))))
+        (should (equal root (pumice-root-for
+                             (expand-file-name "Notes/Clojure.md" root))))))))
+
+(ert-deftest pumice-test-open-in-obsidian ()
+  "A note is handed to Obsidian by its obsidian:// address."
+  (pumice-test-with-vault
+    (with-current-buffer
+        (find-file-noselect (expand-file-name "Weekly Review.md" root))
+      (let (uri)
+        (cl-letf (((symbol-function 'pumice--open-with-system)
+                   (lambda (address) (setq uri address))))
+          (pumice-open-in-obsidian))
+        (should (string-match-p
+                 "\\`obsidian://open\\?path=.*Weekly%20Review\\.md\\'" uri))))))
+
 ;;; Index
 
 (ert-deftest pumice-test-index-skips-hidden-directories ()
