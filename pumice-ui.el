@@ -1,115 +1,115 @@
-;;; vault-ui.el --- Note buffers and the backlinks panel -*- lexical-binding: t; -*-
+;;; pumice-ui.el --- Note buffers and the backlinks panel -*- lexical-binding: t; -*-
 
 ;;; Commentary:
 
-;; `vault-mode' is a minor mode for note buffers: it colours wikilinks by
+;; `pumice-mode' is a minor mode for note buffers: it colours wikilinks by
 ;; whether they resolve, completes note names, headings and tags, and keeps
-;; the index current as notes are saved.  `vault-panel-toggle' shows a side
+;; the index current as notes are saved.  `pumice-panel-toggle' shows a side
 ;; window that follows the current note with its backlinks, the places
 ;; that mention it without linking, and its outgoing links.
 
 ;;; Code:
 
-(require 'vault)
-(require 'vault-commands)
-(require 'vault-refactor)
+(require 'pumice)
+(require 'pumice-commands)
+(require 'pumice-refactor)
 
 (declare-function markdown-code-block-at-pos "markdown-mode")
 (declare-function ispell-completion-at-point "ispell")
 (defvar corfu-auto-prefix)
 
-(defface vault-link '((t :inherit link :underline nil))
-  "A link to a note or file that exists." :group 'vault)
-(defface vault-link-unresolved '((t :inherit shadow :underline t))
-  "A link to a note that has not been written yet." :group 'vault)
-(defface vault-markup '((t :inherit shadow))
+(defface pumice-link '((t :inherit link :underline nil))
+  "A link to a note or file that exists." :group 'pumice)
+(defface pumice-link-unresolved '((t :inherit shadow :underline t))
+  "A link to a note that has not been written yet." :group 'pumice)
+(defface pumice-markup '((t :inherit shadow))
   "Link brackets, and the target of a link that shows other text."
-  :group 'vault)
-(defface vault-tag '((t :inherit font-lock-constant-face))
-  "A #tag." :group 'vault)
-(defface vault-panel-heading '((t :inherit bold :height 1.0))
-  "Section titles in the backlinks panel." :group 'vault)
+  :group 'pumice)
+(defface pumice-tag '((t :inherit font-lock-constant-face))
+  "A #tag." :group 'pumice)
+(defface pumice-panel-heading '((t :inherit bold :height 1.0))
+  "Section titles in the backlinks panel." :group 'pumice)
 
 ;;; Highlighting
 
-(defvar-keymap vault-link-map
+(defvar-keymap pumice-link-map
   :doc "Keys active on a link."
-  "<mouse-2>" #'vault-follow-mouse
+  "<mouse-2>" #'pumice-follow-mouse
   "<follow-link>" 'mouse-face)
 
-(defun vault-follow-mouse (event)
+(defun pumice-follow-mouse (event)
   "Follow the link clicked on in EVENT."
   (interactive "e")
   (mouse-set-point event)
-  (vault-follow))
+  (pumice-follow))
 
-(defconst vault--wikilink-regexp
+(defconst pumice--wikilink-regexp
   "\\(!?\\[\\[\\)\\([^]\n|]*\\)\\(?:\\(|\\)\\([^]\n]*\\)\\)?\\(\\]\\]\\)"
   "A wikilink split for highlighting: open, target, bar, alias, close.")
 
-(defun vault--in-code-p (pos)
+(defun pumice--in-code-p (pos)
   "Non-nil if POS is inside a Markdown code block."
   (and (derived-mode-p 'markdown-mode)
        (fboundp 'markdown-code-block-at-pos)
        (save-match-data (markdown-code-block-at-pos pos))))
 
-(defun vault--match-outside-code (regexp limit)
+(defun pumice--match-outside-code (regexp limit)
   "Search for REGEXP up to LIMIT, skipping matches inside code blocks."
   (let (found)
     (while (and (not found) (re-search-forward regexp limit t))
-      (unless (vault--in-code-p (match-beginning 0))
+      (unless (pumice--in-code-p (match-beginning 0))
         (setq found t)))
     found))
 
-(defun vault--link-props ()
+(defun pumice--link-props ()
   "Return text properties for the wikilink just matched."
   (let* ((text (match-string-no-properties 2))
          (resolved
           (save-match-data
-            (let ((vault (vault-current t))
+            (let ((vault (pumice-current-vault t))
                   (target (car (split-string text "#"))))
-              (or (vault-resolve vault target
-                                 (vault-note-at vault buffer-file-name))
-                  (vault-resolve-file vault target))))))
-    (list 'face (if resolved 'vault-link 'vault-link-unresolved)
-          'mouse-face 'highlight 'keymap vault-link-map
+              (or (pumice-resolve vault target
+                                  (pumice-note-at vault buffer-file-name))
+                  (pumice-resolve-file vault target))))))
+    (list 'face (if resolved 'pumice-link 'pumice-link-unresolved)
+          'mouse-face 'highlight 'keymap pumice-link-map
           'help-echo "RET or mouse-1: follow this link")))
 
-(defconst vault--font-lock-keywords
-  `((,(lambda (limit) (vault--match-outside-code vault--wikilink-regexp limit))
-     (1 'vault-markup t)
-     (2 (if (match-beginning 3) 'vault-markup (vault--link-props)) t)
-     (3 'vault-markup t t)
-     (4 (vault--link-props) t t)
-     (5 'vault-markup t))
+(defconst pumice--font-lock-keywords
+  `((,(lambda (limit) (pumice--match-outside-code pumice--wikilink-regexp limit))
+     (1 'pumice-markup t)
+     (2 (if (match-beginning 3) 'pumice-markup (pumice--link-props)) t)
+     (3 'pumice-markup t t)
+     (4 (pumice--link-props) t t)
+     (5 'pumice-markup t))
     (,(lambda (limit)
-        (vault--match-outside-code
+        (pumice--match-outside-code
          "\\(?:^\\|[ \t(]\\)\\(#[[:alpha:]_][[:alnum:]_/-]*\\)" limit))
-     (1 'vault-tag t))
+     (1 'pumice-tag t))
     ("%%.*?%%" (0 'font-lock-comment-face t)))
   "Highlighting for wikilinks, tags and Obsidian %% comments %%.")
 
 ;;; Completion
 
-(defun vault-note-headings (note)
+(defun pumice-note-headings (note)
   "Return the headings in NOTE, in order."
   (with-temp-buffer
-    (insert-file-contents (vault-note-path note))
+    (insert-file-contents (pumice-note-path note))
     (cl-loop while (re-search-forward "^#+[ \t]+\\(.*?\\)[ \t]*$" nil t)
              collect (match-string-no-properties 1))))
 
-(defun vault--link-candidates (vault from)
+(defun pumice--link-candidates (vault from)
   "Return link targets for every note in VAULT as seen from note FROM.
 An alias is offered as Target|Alias, ready to insert."
-  (cl-loop for note in (vault-notes vault)
-           for target = (vault-link-name vault note from)
-           collect (propertize target 'vault-note note)
+  (cl-loop for note in (pumice-notes vault)
+           for target = (pumice-link-name vault note from)
+           collect (propertize target 'pumice-note note)
            append (mapcar (lambda (alias)
                             (propertize (concat target "|" alias)
-                                        'vault-note note))
-                          (vault-note-aliases note))))
+                                        'pumice-note note))
+                          (pumice-note-aliases note))))
 
-(defun vault--unsorted-table (candidates)
+(defun pumice--unsorted-table (candidates)
   "Return a completion table over CANDIDATES that keeps their order.
 Notes arrive most recently edited first, which is the order wanted."
   (lambda (string pred action)
@@ -118,94 +118,94 @@ Notes arrive most recently edited first, which is the order wanted."
                    (cycle-sort-function . identity))
       (complete-with-action action candidates string pred))))
 
-(defun vault-completion-at-point ()
+(defun pumice-completion-at-point ()
   "Complete a note name after [[, a heading after [[Note#, or a #tag."
   (let* ((bol (pos-bol))
-         (vault (vault-current t))
-         (from (vault-note-at vault buffer-file-name)))
+         (vault (pumice-current-vault t))
+         (from (pumice-note-at vault buffer-file-name)))
     (cond
      ((looking-back "\\[\\[\\([^]\n|#]*\\)\\(?:#\\([^]\n|]*\\)\\)?" bol)
       (let ((close (lambda (_ status)
                      (when (and (eq status 'finished) (not (looking-at-p "\\]\\]")))
                        (insert "]]")))))
         (if (match-beginning 2)
-            (when-let* ((note (vault-resolve vault (match-string 1) from)))
-              (list (match-beginning 2) (point) (vault-note-headings note)
+            (when-let* ((note (pumice-resolve vault (match-string 1) from)))
+              (list (match-beginning 2) (point) (pumice-note-headings note)
                     :exclusive 'no :exit-function close))
           (list (match-beginning 1) (point)
-                (vault--unsorted-table (vault--link-candidates vault from))
+                (pumice--unsorted-table (pumice--link-candidates vault from))
                 :exclusive 'no :exit-function close
                 :annotation-function
                 (lambda (cand)
-                  (when-let* ((note (get-text-property 0 'vault-note cand))
-                              (dir (file-name-directory (vault-note-rel note))))
+                  (when-let* ((note (get-text-property 0 'pumice-note cand))
+                              (dir (file-name-directory (pumice-note-rel note))))
                     (unless (string-search "/" cand)
                       (concat "  " dir))))))))
      ((looking-back "\\(?:^\\|[ \t(]\\)#\\([[:alpha:]_][[:alnum:]_/-]*\\)" bol)
-      (list (match-beginning 1) (point) (mapcar #'car (vault-tags vault))
+      (list (match-beginning 1) (point) (mapcar #'car (pumice-tags vault))
             :exclusive 'no)))))
 
 ;;; The minor mode
 
-(defun vault--after-save ()
+(defun pumice--after-save ()
   "Reindex after a save so links and the panel reflect it at once."
-  (vault-refresh (vault-current t) t)
+  (pumice-refresh (pumice-current-vault t) t)
   (font-lock-flush))
 
-(defvar-keymap vault-mode-map
+(defvar-keymap pumice-mode-map
   :doc "Keys for note buffers.  The vim bindings are set up in init.el.")
 
 ;;;###autoload
-(define-minor-mode vault-mode
+(define-minor-mode pumice-mode
   "Minor mode for a note that lives in a vault."
-  :lighter " Vault"
-  (if vault-mode
+  :lighter " Pumice"
+  (if pumice-mode
       (progn
-        (font-lock-add-keywords nil vault--font-lock-keywords 'append)
+        (font-lock-add-keywords nil pumice--font-lock-keywords 'append)
         (make-local-variable 'font-lock-extra-managed-props)
         (dolist (prop '(mouse-face keymap help-echo))
           (cl-pushnew prop font-lock-extra-managed-props))
         (add-hook 'completion-at-point-functions
-                  #'vault-completion-at-point nil t)
+                  #'pumice-completion-at-point nil t)
         ;; Dictionary completion would pop up on every word of prose.
         (remove-hook 'completion-at-point-functions
                      #'ispell-completion-at-point t)
         ;; Offer notes as soon as [[ is typed.
         (setq-local corfu-auto-prefix 0)
-        (add-hook 'after-save-hook #'vault--after-save nil t)
-        (add-hook 'before-save-hook #'vault-ensure-directory nil t)
+        (add-hook 'after-save-hook #'pumice--after-save nil t)
+        (add-hook 'before-save-hook #'pumice-ensure-directory nil t)
         (visual-line-mode 1))
-    (font-lock-remove-keywords nil vault--font-lock-keywords)
-    (remove-hook 'completion-at-point-functions #'vault-completion-at-point t)
+    (font-lock-remove-keywords nil pumice--font-lock-keywords)
+    (remove-hook 'completion-at-point-functions #'pumice-completion-at-point t)
     (kill-local-variable 'corfu-auto-prefix)
-    (remove-hook 'after-save-hook #'vault--after-save t)
-    (remove-hook 'before-save-hook #'vault-ensure-directory t))
+    (remove-hook 'after-save-hook #'pumice--after-save t)
+    (remove-hook 'before-save-hook #'pumice-ensure-directory t))
   (font-lock-flush))
 
 ;;;###autoload
-(defun vault-mode-maybe ()
-  "Turn on `vault-mode' if this buffer is a Markdown file in a vault."
+(defun pumice-mode-maybe ()
+  "Turn on `pumice-mode' if this buffer is a Markdown file in a vault."
   (when (and buffer-file-name
              (string-suffix-p ".md" buffer-file-name t)
-             (vault-root-for buffer-file-name))
-    (vault-mode 1)))
+             (pumice-root-for buffer-file-name))
+    (pumice-mode 1)))
 
 ;;;###autoload
-(define-minor-mode vault-global-mode
-  "Turn on `vault-mode' in every Markdown file opened from a vault."
-  :global t :group 'vault
-  (if vault-global-mode
-      (add-hook 'find-file-hook #'vault-mode-maybe)
-    (remove-hook 'find-file-hook #'vault-mode-maybe)))
+(define-minor-mode pumice-global-mode
+  "Turn on `pumice-mode' in every Markdown file opened from a vault."
+  :global t :group 'pumice
+  (if pumice-global-mode
+      (add-hook 'find-file-hook #'pumice-mode-maybe)
+    (remove-hook 'find-file-hook #'pumice-mode-maybe)))
 
 ;;; Unlinked mentions
 
-(defun vault-unlinked-mentions (vault note)
+(defun pumice-unlinked-mentions (vault note)
   "Return (PATH LINE TEXT) for lines in VAULT naming NOTE without linking.
 Needs ripgrep; returns nil without it."
   (let ((names (cl-remove-if (lambda (name) (< (length name) 3))
-                             (cons (vault-note-name note)
-                                   (vault-note-aliases note))))
+                             (cons (pumice-note-name note)
+                                   (pumice-note-aliases note))))
         (case-fold-search t))
     (when (and names (executable-find "rg"))
       (let ((linked (concat "\\[\\[[^]\n]*" (regexp-opt names) "[^]\n]*\\]\\]")))
@@ -218,22 +218,22 @@ Needs ripgrep; returns nil without it."
                             (append (mapcan (lambda (name) (list "-e" name))
                                             names)
                                     (list (directory-file-name
-                                           (vault--root vault)))))
+                                           (pumice--root vault)))))
          when (and (string-match "\\`\\(.*?\\.md\\):\\([0-9]+\\):\\(.*\\)\\'"
                                  line)
-                   (not (equal (match-string 1 line) (vault-note-path note)))
+                   (not (equal (match-string 1 line) (pumice-note-path note)))
                    (not (string-match-p linked (match-string 3 line))))
          collect (list (match-string 1 line)
                        (string-to-number (match-string 2 line))
                        (string-trim (match-string 3 line))))))))
 
-(defun vault-link-mention (path line note)
+(defun pumice-link-mention (path line note)
   "Turn the first plain mention of NOTE on LINE of PATH into a link."
-  (let* ((vault (vault-get (vault-root-for path)))
-         (names (cons (vault-note-name note) (vault-note-aliases note)))
-         (target (vault-link-name vault note (vault-note-at vault path)))
+  (let* ((vault (pumice-vault-at (pumice-root-for path)))
+         (names (cons (pumice-note-name note) (pumice-note-aliases note)))
+         (target (pumice-link-name vault note (pumice-note-at vault path)))
          (case-fold-search t) done)
-    (vault--edit-file
+    (pumice--edit-file
      path
      (lambda ()
        (goto-char (point-min))
@@ -245,7 +245,7 @@ Needs ripgrep; returns nil without it."
                             (format "[[%s|%s]]" target text))
                           t t)
            (setq done t)))))
-    (vault-refresh vault t)
+    (pumice-refresh vault t)
     done))
 
 ;;; Side windows
@@ -255,7 +255,7 @@ Needs ripgrep; returns nil without it."
 ;; alone, Emacs would split the main window for `find-file', and
 ;; `switch-to-buffer' would put its buffer in the narrow side window.
 
-(define-derived-mode vault-side-mode special-mode "Vault"
+(define-derived-mode pumice-side-mode special-mode "Pumice"
   "Parent of the modes shown in side windows: the panel and the tree."
   (setq truncate-lines t
         cursor-in-non-selected-windows nil)
@@ -264,17 +264,17 @@ Needs ripgrep; returns nil without it."
   ;; it refuses to run unless told to pop as well.
   (setq-local switch-to-buffer-in-dedicated-window 'pop))
 
-(defun vault--side-window-selected-p (&rest _)
+(defun pumice--side-window-selected-p (&rest _)
   "Non-nil if the selected window shows the panel or the tree."
   (with-current-buffer (window-buffer)
-    (derived-mode-p 'vault-side-mode)))
+    (derived-mode-p 'pumice-side-mode)))
 
 (add-to-list 'display-buffer-alist
-             '(vault--side-window-selected-p
+             '(pumice--side-window-selected-p
                (display-buffer-reuse-window display-buffer-use-some-window)
                (some-window . mru)))
 
-(defun vault--show-side-window (buffer side width)
+(defun pumice--show-side-window (buffer side width)
   "Show BUFFER in a window WIDTH columns wide on SIDE of the frame."
   (display-buffer-in-side-window
    buffer
@@ -284,39 +284,39 @@ Needs ripgrep; returns nil without it."
 
 ;;; Backlinks panel
 
-(defconst vault-panel-buffer "*vault*" "Name of the panel buffer.")
+(defconst pumice-panel-buffer "*pumice-panel*" "Name of the panel buffer.")
 
-(defcustom vault-panel-width 44
+(defcustom pumice-panel-width 44
   "Width of the backlinks panel in columns."
-  :type 'integer :group 'vault)
+  :type 'integer :group 'pumice)
 
-(defvar-local vault-panel--shown nil "What the panel last drew: (PATH . TICK).")
-(defvar vault-panel--timer nil)
+(defvar-local pumice-panel--shown nil "What the panel last drew: (PATH . TICK).")
+(defvar pumice-panel--timer nil)
 
-(defvar-keymap vault-panel-mode-map
+(defvar-keymap pumice-panel-mode-map
   :doc "Keys in the backlinks panel."
-  "RET" #'vault-panel-visit
-  "o" #'vault-panel-peek
-  "l" #'vault-panel-link-mention
-  "TAB" #'vault-panel-next
-  "n" #'vault-panel-next
-  "<backtab>" #'vault-panel-previous
-  "p" #'vault-panel-previous
-  "g" #'vault-panel-refresh
-  "q" #'vault-panel-toggle)
+  "RET" #'pumice-panel-visit
+  "o" #'pumice-panel-peek
+  "l" #'pumice-panel-link-mention
+  "TAB" #'pumice-panel-next
+  "n" #'pumice-panel-next
+  "<backtab>" #'pumice-panel-previous
+  "p" #'pumice-panel-previous
+  "g" #'pumice-panel-refresh
+  "q" #'pumice-panel-toggle)
 
-(define-derived-mode vault-panel-mode vault-side-mode "Vault"
+(define-derived-mode pumice-panel-mode pumice-side-mode "Pumice"
   "Backlinks, unlinked mentions and outgoing links of the current note.")
 
-(defun vault-panel--context (text)
+(defun pumice-panel--context (text)
   "Return context line TEXT with its links picked out."
   (let ((text (propertize (copy-sequence text) 'face 'shadow)) (start 0))
     (while (string-match "\\[\\[[^]\n]*\\]\\]" text start)
-      (put-text-property (match-beginning 0) (match-end 0) 'face 'vault-link text)
+      (put-text-property (match-beginning 0) (match-end 0) 'face 'pumice-link text)
       (setq start (match-end 0)))
     text))
 
-(defun vault-panel--section (title groups)
+(defun pumice-panel--section (title groups)
   "Insert a section called TITLE.
 GROUPS is a list of (LABEL ITEM FACE . LINES) where LINES are (ITEM . TEXT)
 pairs shown under the label.  ITEM is what RET on that line acts on."
@@ -324,172 +324,172 @@ pairs shown under the label.  ITEM is what RET on that line acts on."
                               (if (cl-some #'cdddr groups)
                                   (cl-loop for g in groups sum (length (cdddr g)))
                                 (length groups)))
-                      'face 'vault-panel-heading))
+                      'face 'pumice-panel-heading))
   (pcase-dolist (`(,label ,item ,face . ,lines) groups)
-    (insert (propertize (concat "  " label "\n") 'face face 'vault-item item))
+    (insert (propertize (concat "  " label "\n") 'face face 'pumice-item item))
     (pcase-dolist (`(,line-item . ,text) lines)
-      (insert (propertize (concat "    " (vault-panel--context text) "\n")
-                          'vault-item line-item))))
+      (insert (propertize (concat "    " (pumice-panel--context text) "\n")
+                          'pumice-item line-item))))
   (insert "\n"))
 
-(defun vault-panel--group (entries)
+(defun pumice-panel--group (entries)
   "Group ENTRIES, a list of (PATH LINE TEXT), into panel groups by file."
   (mapcar (lambda (group)
             (let ((path (car group)))
-              `(,(file-name-base path) (:path ,path) vault-link
+              `(,(file-name-base path) (:path ,path) pumice-link
                 ,@(mapcar (lambda (entry)
                             (cons (list :path path :line (nth 1 entry))
                                   (nth 2 entry)))
                           (cdr group)))))
           (seq-group-by #'car entries)))
 
-(defun vault-panel--render (vault note)
+(defun pumice-panel--render (vault note)
   "Draw the panel for NOTE in VAULT."
   (let ((inhibit-read-only t)
         (line (line-number-at-pos))
-        (same (equal (car vault-panel--shown) (vault-note-path note))))
+        (same (equal (car pumice-panel--shown) (pumice-note-path note))))
     (erase-buffer)
-    (insert (propertize (vault-note-name note) 'face '(:inherit bold :height 1.2))
+    (insert (propertize (pumice-note-name note) 'face '(:inherit bold :height 1.2))
             "\n"
-            (propertize (concat (or (file-name-directory (vault-note-rel note)) "")
+            (propertize (concat (or (file-name-directory (pumice-note-rel note)) "")
                                 (mapconcat (lambda (tag) (concat " #" tag))
-                                           (vault-note-tags note)))
+                                           (pumice-note-tags note)))
                         'face 'shadow)
             "\n\n")
-    (vault-panel--section
+    (pumice-panel--section
      "Backlinks"
-     (vault-panel--group
+     (pumice-panel--group
       (mapcar (lambda (pair)
-                (list (vault-note-path (car pair))
-                      (vault-link-line (cdr pair)) (vault-link-text (cdr pair))))
-              (vault-backlinks vault note))))
-    (vault-panel--section
+                (list (pumice-note-path (car pair))
+                      (pumice-link-line (cdr pair)) (pumice-link-text (cdr pair))))
+              (pumice-backlinks vault note))))
+    (pumice-panel--section
      "Unlinked mentions"
      (mapcar (lambda (group)
                (dolist (line (cdddr group))
                  (setcar line (append (car line) (list :mention note))))
                group)
-             (vault-panel--group (vault-unlinked-mentions vault note))))
-    (vault-panel--section
+             (pumice-panel--group (pumice-unlinked-mentions vault note))))
+    (pumice-panel--section
      "Links"
      (cl-loop for target in (delete-dups
-                             (mapcar #'vault-link-target (vault-note-links note)))
-              for dest = (vault-resolve vault target note)
-              for file = (and (not dest) (vault-resolve-file vault target))
+                             (mapcar #'pumice-link-target (pumice-note-links note)))
+              for dest = (pumice-resolve vault target note)
+              for file = (and (not dest) (pumice-resolve-file vault target))
               unless (string-empty-p target)
-              collect (cond (dest (list (vault-note-name dest)
-                                        (list :path (vault-note-path dest))
-                                        'vault-link))
-                            (file (list target (list :path file) 'vault-link))
+              collect (cond (dest (list (pumice-note-name dest)
+                                        (list :path (pumice-note-path dest))
+                                        'pumice-link))
+                            (file (list target (list :path file) 'pumice-link))
                             (t (list target (list :new target)
-                                     'vault-link-unresolved)))))
-    (setq vault-local-root (vault--root vault)
-          vault-panel--shown (cons (vault-note-path note) (vault--tick vault)))
+                                     'pumice-link-unresolved)))))
+    (setq pumice-local-root (pumice--root vault)
+          pumice-panel--shown (cons (pumice-note-path note) (pumice--tick vault)))
     (goto-char (point-min))
     (when same (forward-line (1- line)))))
 
-(defun vault-panel--sync (&optional force)
+(defun pumice-panel--sync (&optional force)
   "Point the panel at the selected window's note if that changed.
 With FORCE, redraw even if nothing seems to have."
-  (let ((panel (get-buffer vault-panel-buffer)))
+  (let ((panel (get-buffer pumice-panel-buffer)))
     (if (not (and panel (get-buffer-window panel t)))
-        (when vault-panel--timer
-          (cancel-timer vault-panel--timer)
-          (setq vault-panel--timer nil))
+        (when pumice-panel--timer
+          (cancel-timer pumice-panel--timer)
+          (setq pumice-panel--timer nil))
       (let ((path (buffer-file-name (window-buffer (selected-window)))))
-        (when-let* ((root (and path (vault-root-for path)))
-                    (vault (vault-get root))
-                    (note (vault-note-at vault path)))
+        (when-let* ((root (and path (pumice-root-for path)))
+                    (vault (pumice-vault-at root))
+                    (note (pumice-note-at vault path)))
           (with-current-buffer panel
             (when (or force
-                      (not (equal vault-panel--shown
-                                  (cons path (vault--tick vault)))))
+                      (not (equal pumice-panel--shown
+                                  (cons path (pumice--tick vault)))))
               (let ((window (get-buffer-window panel t)))
-                (vault-panel--render vault note)
+                (pumice-panel--render vault note)
                 (set-window-point window (point))))))))))
 
 ;;;###autoload
-(defun vault-panel-toggle ()
+(defun pumice-panel-toggle ()
   "Show or hide the backlinks panel beside the current note."
   (interactive)
-  (if-let* ((window (get-buffer-window vault-panel-buffer)))
+  (if-let* ((window (get-buffer-window pumice-panel-buffer)))
       (delete-window window)
-    (with-current-buffer (get-buffer-create vault-panel-buffer)
-      (unless (derived-mode-p 'vault-panel-mode) (vault-panel-mode))
-      (vault--show-side-window (current-buffer) 'right vault-panel-width))
-    (unless vault-panel--timer
-      (setq vault-panel--timer
-            (run-with-idle-timer 0.2 t #'vault-panel--sync)))
-    (vault-panel--sync t)))
+    (with-current-buffer (get-buffer-create pumice-panel-buffer)
+      (unless (derived-mode-p 'pumice-panel-mode) (pumice-panel-mode))
+      (pumice--show-side-window (current-buffer) 'right pumice-panel-width))
+    (unless pumice-panel--timer
+      (setq pumice-panel--timer
+            (run-with-idle-timer 0.2 t #'pumice-panel--sync)))
+    (pumice-panel--sync t)))
 
 ;;;###autoload
-(defun vault-panel-focus ()
+(defun pumice-panel-focus ()
   "Move to the backlinks panel, opening it if needed."
   (interactive)
-  (unless (get-buffer-window vault-panel-buffer) (vault-panel-toggle))
-  (select-window (get-buffer-window vault-panel-buffer)))
+  (unless (get-buffer-window pumice-panel-buffer) (pumice-panel-toggle))
+  (select-window (get-buffer-window pumice-panel-buffer)))
 
-(defun vault-panel-refresh ()
+(defun pumice-panel-refresh ()
   "Redraw the panel from disk."
   (interactive)
-  (when vault-local-root (vault-refresh (vault-get vault-local-root t) t))
-  (setq vault-panel--shown nil)
+  (when pumice-local-root (pumice-refresh (pumice-vault-at pumice-local-root t) t))
+  (setq pumice-panel--shown nil)
   (when-let* ((window (get-mru-window nil nil t)))
-    (with-selected-window window (vault-panel--sync t))))
+    (with-selected-window window (pumice-panel--sync t))))
 
-(defun vault-panel--move (direction)
+(defun pumice-panel--move (direction)
   "Move to the next panel item, or the previous if DIRECTION is -1."
   (let ((pos (point)) found)
     (while (and (not found) (zerop (forward-line direction)) (not (eobp)))
-      (setq found (get-text-property (point) 'vault-item)))
+      (setq found (get-text-property (point) 'pumice-item)))
     (unless found (goto-char pos))))
 
-(defun vault-panel-next ()
+(defun pumice-panel-next ()
   "Move to the next item."
   (interactive)
-  (vault-panel--move 1))
+  (pumice-panel--move 1))
 
-(defun vault-panel-previous ()
+(defun pumice-panel-previous ()
   "Move to the previous item."
   (interactive)
-  (vault-panel--move -1))
+  (pumice-panel--move -1))
 
-(defun vault-panel--open (item root)
+(defun pumice-panel--open (item root)
   "Show ITEM from the vault at ROOT in the last used ordinary window."
   (select-window (or (get-mru-window nil nil t) (next-window)))
   (if-let* ((target (plist-get item :new)))
-      (vault-open (vault-get root) target)
-    (vault--visit (plist-get item :path))
+      (pumice-open (pumice-vault-at root) target)
+    (pumice--visit (plist-get item :path))
     (when-let* ((line (plist-get item :line)))
       (goto-char (point-min))
       (forward-line (1- line))
       (recenter))))
 
-(defun vault-panel-visit ()
+(defun pumice-panel-visit ()
   "Go to the note, or the line in it, that this panel line stands for."
   (interactive)
-  (vault-panel--open (or (get-text-property (pos-bol) 'vault-item)
-                         (user-error "Nothing to visit on this line"))
-                     vault-local-root))
+  (pumice-panel--open (or (get-text-property (pos-bol) 'pumice-item)
+                          (user-error "Nothing to visit on this line"))
+                      pumice-local-root))
 
-(defun vault-panel-peek ()
+(defun pumice-panel-peek ()
   "Show this panel line's note in the other window and stay in the panel."
   (interactive)
   (let ((panel (selected-window)))
-    (vault-panel-visit)
+    (pumice-panel-visit)
     (select-window panel)))
 
-(defun vault-panel-link-mention ()
+(defun pumice-panel-link-mention ()
   "Turn the unlinked mention on this panel line into a link."
   (interactive)
-  (let* ((item (get-text-property (pos-bol) 'vault-item))
+  (let* ((item (get-text-property (pos-bol) 'pumice-item))
          (note (or (plist-get item :mention)
                    (user-error "This line is not an unlinked mention"))))
-    (if (vault-link-mention (plist-get item :path) (plist-get item :line) note)
-        (progn (setq vault-panel--shown nil)
-               (vault-panel-refresh)
+    (if (pumice-link-mention (plist-get item :path) (plist-get item :line) note)
+        (progn (setq pumice-panel--shown nil)
+               (pumice-panel-refresh)
                (message "Linked"))
       (message "The mention is no longer on that line"))))
 
-(provide 'vault-ui)
-;;; vault-ui.el ends here
+(provide 'pumice-ui)
+;;; pumice-ui.el ends here
