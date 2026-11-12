@@ -4,6 +4,9 @@ EMACS ?= emacs
 DEPS ?=
 BATCH = $(EMACS) --batch -Q -L . $(addprefix -L ,$(DEPS))
 SOURCES = $(wildcard pumice*.el)
+# package-vc compiles every file in the checkout, so these have to be
+# clean as well.
+EXTRAS = test/pumice-test.el $(wildcard contrib/spacemacs/pumice/*.el)
 
 .PHONY: all test compile checkdoc clean
 
@@ -15,11 +18,11 @@ test:
 # Warnings are errors, so a new one cannot slip in.
 compile: clean
 	$(BATCH) --eval '(setq byte-compile-error-on-warn t)' \
-	  -f batch-byte-compile $(SOURCES)
+	  -f batch-byte-compile $(SOURCES) $(EXTRAS)
 
 checkdoc:
 	$(BATCH) --eval '(dolist (file command-line-args-left) (checkdoc-file file))' \
 	  $(SOURCES)
 
 clean:
-	rm -f *.elc
+	rm -f *.elc test/*.elc contrib/spacemacs/pumice/*.elc

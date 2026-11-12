@@ -11,6 +11,13 @@
 
 ;;; Code:
 
+;; Spacemacs defines these.  Saying so keeps the byte compiler quiet when a
+;; package manager compiles this file outside Spacemacs.
+(defvar dotspacemacs-editing-style)
+(defvar pumice-leader-key)
+(declare-function spacemacs/declare-prefix "core-keybindings")
+(declare-function spacemacs/set-leader-keys "core-keybindings")
+
 (defconst pumice-packages
   '((pumice :location (recipe :fetcher github :repo "kirahowe/pumice")))
   "The Lisp packages the pumice layer needs.")

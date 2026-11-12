@@ -806,6 +806,12 @@
 
 ;;; Evil
 
+(declare-function evil-local-mode "evil-core")
+(declare-function evil-normal-state "evil-states")
+(declare-function evil-initial-state "evil-core")
+(declare-function evil-get-auxiliary-keymap "evil-core")
+(declare-function pumice-evil-ret "pumice-evil")
+
 (ert-deftest pumice-test-evil-keys ()
   "The optional vim keys exist in notes, the panel and the tree."
   (skip-unless (locate-library "evil"))
