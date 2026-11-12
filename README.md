@@ -1,5 +1,11 @@
 # pumice
 
+[![CI](https://github.com/kirahowe/pumice/actions/workflows/test.yml/badge.svg)](https://github.com/kirahowe/pumice/actions/workflows/test.yml)
+[![Release](https://img.shields.io/github/v/tag/kirahowe/pumice?label=release&sort=semver)](https://github.com/kirahowe/pumice/tags)
+[![Emacs 29.1 or later](https://img.shields.io/badge/Emacs-29.1%2B-7F5AB6?logo=gnuemacs&logoColor=white)](https://www.gnu.org/software/emacs/)
+[![No dependencies](https://img.shields.io/badge/dependencies-none-brightgreen)](#install)
+[![Licence: GPL-3.0-or-later](https://img.shields.io/badge/licence-GPL--3.0--or--later-blue)](LICENSE)
+
 Pumice lets you work in an Obsidian vault from Emacs, without Obsidian
 running. It is for people who keep their notes in a vault, already live in
 Emacs, and would rather not run a second, heavier app to read them.
