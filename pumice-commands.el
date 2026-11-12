@@ -1,5 +1,17 @@
 ;;; pumice-commands.el --- Navigating and creating notes -*- lexical-binding: t; -*-
 
+;; Copyright (C) 2026 Kira Howe
+
+;; Author: Kira Howe <email@kirahowe.com>
+;; URL: https://github.com/kirahowe/pumice
+;; SPDX-License-Identifier: GPL-3.0-or-later
+
+;; This file is part of pumice.  It is free software: you can redistribute
+;; it and/or modify it under the terms of the GNU General Public License as
+;; published by the Free Software Foundation, either version 3 of the
+;; License, or (at your option) any later version.  It comes with no
+;; warranty; see the file LICENSE for the details.
+
 ;;; Commentary:
 
 ;; The interactive side of pumice.el: the note switcher, following and
@@ -7,7 +19,7 @@
 
 ;;; Code:
 
-(require 'pumice)
+(require 'pumice-core)
 
 (declare-function consult--read "consult")
 (declare-function consult--file-preview "consult")
@@ -91,7 +103,8 @@ A NAME with a folder in it is taken relative to the vault root."
         (goto-char start)))))
 
 (defun pumice--visit (path &optional heading other-window)
-  "Visit PATH, remembering where we came from, then go to HEADING."
+  "Visit PATH, remembering where we came from, then go to HEADING.
+Use the OTHER-WINDOW if that is non-nil."
   (when (fboundp 'evil-set-jump) (evil-set-jump))
   (let ((buffer (pumice--file-buffer path)))
     (if other-window
@@ -275,7 +288,8 @@ OTHER-WINDOW."
   (pumice-follow t))
 
 (defun pumice--link-text (vault choice &optional alias)
-  "Return wikilink text for CHOICE from `pumice-read-note', shown as ALIAS."
+  "Return wikilink text for CHOICE from `pumice-read-note', shown as ALIAS.
+The link is written as VAULT would resolve it from the current note."
   (let* ((from (pumice-note-at vault buffer-file-name))
          (target (if (consp choice)
                      (pumice-link-name vault (car choice) from)
@@ -323,7 +337,8 @@ OTHER-WINDOW."
 ;;; Templates
 
 (defun pumice--expand-template (text title time)
-  "Fill Obsidian's {{title}}, {{date}} and {{time}} variables in TEXT."
+  "Fill Obsidian's {{title}}, {{date}} and {{time}} variables in TEXT.
+TITLE is the note's name and TIME the moment the dates are taken from."
   (replace-regexp-in-string
    "{{\\(title\\|date\\|time\\)\\(?::\\([^}]*\\)\\)?}}"
    (lambda (match)

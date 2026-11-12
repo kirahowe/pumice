@@ -1,5 +1,17 @@
 ;;; pumice-tree.el --- A folder tree of the vault -*- lexical-binding: t; -*-
 
+;; Copyright (C) 2026 Kira Howe
+
+;; Author: Kira Howe <email@kirahowe.com>
+;; URL: https://github.com/kirahowe/pumice
+;; SPDX-License-Identifier: GPL-3.0-or-later
+
+;; This file is part of pumice.  It is free software: you can redistribute
+;; it and/or modify it under the terms of the GNU General Public License as
+;; published by the Free Software Foundation, either version 3 of the
+;; License, or (at your option) any later version.  It comes with no
+;; warranty; see the file LICENSE for the details.
+
 ;;; Commentary:
 
 ;; `pumice-tree' shows the vault's folders and notes in a side window on the
@@ -8,7 +20,7 @@
 
 ;;; Code:
 
-(require 'pumice)
+(require 'pumice-core)
 (require 'pumice-commands)
 (require 'pumice-refactor)
 (require 'pumice-ui)
@@ -59,9 +71,9 @@
 (defun pumice-tree--model (vault)
   "Return (CHILDREN . STATS), two hash tables describing VAULT's folders.
 Both are keyed by folder path relative to the root, \"\" for the root
-itself.  CHILDREN gives a folder's entries, each (dir REL), (note NOTE) or
-(file REL).  STATS gives (COUNT . MTIME): how many notes are anywhere below
-the folder, and when the newest of them changed."
+itself.  CHILDREN gives a folder's entries, each (dir REL), (note NOTE)
+or (file REL).  STATS gives (COUNT . MTIME): how many notes are anywhere
+below the folder, and when the newest of them changed."
   (let ((children (make-hash-table :test 'equal))
         (stats (make-hash-table :test 'equal)))
     (cl-flet ((add (entry rel mtime)

@@ -1,5 +1,17 @@
 ;;; pumice-refactor.el --- Renaming and splitting notes -*- lexical-binding: t; -*-
 
+;; Copyright (C) 2026 Kira Howe
+
+;; Author: Kira Howe <email@kirahowe.com>
+;; URL: https://github.com/kirahowe/pumice
+;; SPDX-License-Identifier: GPL-3.0-or-later
+
+;; This file is part of pumice.  It is free software: you can redistribute
+;; it and/or modify it under the terms of the GNU General Public License as
+;; published by the Free Software Foundation, either version 3 of the
+;; License, or (at your option) any later version.  It comes with no
+;; warranty; see the file LICENSE for the details.
+
 ;;; Commentary:
 
 ;; The commands that rewrite files other than the one being edited:
@@ -8,7 +20,7 @@
 
 ;;; Code:
 
-(require 'pumice)
+(require 'pumice-core)
 (require 'pumice-commands)
 
 (defun pumice--map-links (fn)

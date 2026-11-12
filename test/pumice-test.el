@@ -1,18 +1,12 @@
-;;; pumice-test.el --- Tests for pumice.el -*- lexical-binding: t; -*-
+;;; pumice-test.el --- Tests for pumice -*- lexical-binding: t; -*-
 
-;; Run from the repo root:
-;;   emacs --batch -L emacs/command-centre/lisp \
-;;     -l emacs/command-centre/test/pumice-test.el -f ert-run-tests-batch-and-exit
+;; Run them with `make test' from the repo root.
 ;;
 ;; Every test builds a throwaway vault under `temporary-file-directory', so
 ;; nothing here can touch a real one.
 
 (require 'ert)
 (require 'pumice)
-(require 'pumice-commands)
-(require 'pumice-refactor)
-(require 'pumice-ui)
-(require 'pumice-tree)
 (require 'pumice-cli)
 
 (pumice-global-mode 1)
