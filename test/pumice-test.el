@@ -461,6 +461,19 @@
                      (sort (mapcar #'pumice-note-name (cdr (assoc "gtd" tags)))
                            #'string<))))))
 
+(ert-deftest pumice-test-search-without-consult ()
+  "Search falls back to rgrep over the vault's Markdown files."
+  (skip-unless (not (locate-library "consult")))
+  ;; Loaded now, or loading it inside the command would undo the stub.
+  (require 'grep)
+  (pumice-test-with-vault
+    (let (called)
+      (cl-letf (((symbol-function 'read-regexp) (lambda (&rest _) "inbox"))
+                ((symbol-function 'rgrep) (lambda (&rest args)
+                                            (setq called args))))
+        (pumice-search))
+      (should (equal (list "inbox" "*.md" root) called)))))
+
 ;;; Renaming
 
 (ert-deftest pumice-test-rename-rewrites-links ()

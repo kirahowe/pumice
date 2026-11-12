@@ -27,6 +27,8 @@
 (declare-function consult-ripgrep "consult")
 (declare-function evil-set-jump "evil-jumps")
 (declare-function org-read-date "org")
+(declare-function rgrep "grep")
+(declare-function grep-compute-defaults "grep")
 (declare-function w32-shell-execute "w32fns.c")
 
 (defcustom pumice-log-heading "Log"
@@ -528,9 +530,16 @@ The note is saved and stays in the background."
 
 ;;;###autoload
 (defun pumice-search (&optional initial)
-  "Search the text of every note, starting from INITIAL."
+  "Search the text of every note, starting from INITIAL.
+With consult installed the search runs ripgrep as you type.  Without it,
+this asks for a regexp and lists the matching lines with `rgrep'."
   (interactive)
-  (consult-ripgrep (pumice--root (pumice-current-vault)) initial))
+  (let ((root (pumice--root (pumice-current-vault))))
+    (if (require 'consult nil t)
+        (consult-ripgrep root initial)
+      (require 'grep)
+      (grep-compute-defaults)
+      (rgrep (read-regexp "Search notes for: " initial) "*.md" root))))
 
 (defun pumice-tags (vault &optional notes)
   "Return an alist of tag to the notes in VAULT carrying it.
