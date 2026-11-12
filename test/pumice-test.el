@@ -575,6 +575,11 @@
   (pumice-test-with-vault
     (pumice-test-in-note "Home.md"
       (should-not (pumice-test--complete "plain text"))
+      ;; Notes are offered straight after [[, whatever prefix length the
+      ;; completion popup otherwise waits for.
+      (insert "\n[[")
+      (should (eq t (plist-get (nthcdr 3 (pumice-completion-at-point))
+                               :company-prefix-length)))
       (pcase-let ((`(,prefix . ,names) (pumice-test--complete "\n[[Week")))
         (should (equal "Week" prefix))
         (should (member "Weekly Review" names))

@@ -27,8 +27,6 @@
 (require 'pumice-refactor)
 
 (declare-function markdown-code-block-at-pos "markdown-mode")
-(declare-function ispell-completion-at-point "ispell")
-(defvar corfu-auto-prefix)
 
 (defface pumice-link '((t :inherit link :underline nil))
   "A link to a note or file that exists." :group 'pumice)
@@ -131,7 +129,9 @@ Notes arrive most recently edited first, which is the order wanted."
       (complete-with-action action candidates string pred))))
 
 (defun pumice-completion-at-point ()
-  "Complete a note name after [[, a heading after [[Note#, or a #tag."
+  "Complete a note name after [[, a heading after [[Note#, or a #tag.
+Each asks corfu and company to pop up at once, however short the text
+typed so far, so that the notes are offered as soon as [[ is typed."
   (let* ((bol (pos-bol))
          (vault (pumice-current-vault t))
          (from (pumice-note-at vault buffer-file-name)))
@@ -143,10 +143,12 @@ Notes arrive most recently edited first, which is the order wanted."
         (if (match-beginning 2)
             (when-let* ((note (pumice-resolve vault (match-string 1) from)))
               (list (match-beginning 2) (point) (pumice-note-headings note)
-                    :exclusive 'no :exit-function close))
+                    :exclusive 'no :exit-function close
+                    :company-prefix-length t))
           (list (match-beginning 1) (point)
                 (pumice--unsorted-table (pumice--link-candidates vault from))
                 :exclusive 'no :exit-function close
+                :company-prefix-length t
                 :annotation-function
                 (lambda (cand)
                   (when-let* ((note (get-text-property 0 'pumice-note cand))
@@ -155,7 +157,7 @@ Notes arrive most recently edited first, which is the order wanted."
                       (concat "  " dir))))))))
      ((looking-back "\\(?:^\\|[ \t(]\\)#\\([[:alpha:]_][[:alnum:]_/-]*\\)" bol)
       (list (match-beginning 1) (point) (mapcar #'car (pumice-tags vault))
-            :exclusive 'no)))))
+            :exclusive 'no :company-prefix-length t)))))
 
 ;;; The minor mode
 
@@ -186,17 +188,10 @@ The rest of the commands are in `pumice-command-map'."
           (cl-pushnew prop font-lock-extra-managed-props))
         (add-hook 'completion-at-point-functions
                   #'pumice-completion-at-point nil t)
-        ;; Dictionary completion would pop up on every word of prose.
-        (remove-hook 'completion-at-point-functions
-                     #'ispell-completion-at-point t)
-        ;; Offer notes as soon as [[ is typed.
-        (setq-local corfu-auto-prefix 0)
         (add-hook 'after-save-hook #'pumice--after-save nil t)
-        (add-hook 'before-save-hook #'pumice-ensure-directory nil t)
-        (visual-line-mode 1))
+        (add-hook 'before-save-hook #'pumice-ensure-directory nil t))
     (font-lock-remove-keywords nil pumice--font-lock-keywords)
     (remove-hook 'completion-at-point-functions #'pumice-completion-at-point t)
-    (kill-local-variable 'corfu-auto-prefix)
     (remove-hook 'after-save-hook #'pumice--after-save t)
     (remove-hook 'before-save-hook #'pumice-ensure-directory t))
   (font-lock-flush))
