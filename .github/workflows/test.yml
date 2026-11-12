@@ -1,0 +1,38 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    # A new warning in an unreleased Emacs should not turn the build red.
+    continue-on-error: ${{ matrix.emacs == 'snapshot' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        emacs: ['29.1', '29.4', '30.1', 'snapshot']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: purcell/setup-emacs@v8.0
+        with:
+          version: ${{ matrix.emacs }}
+      # The unlinked-mentions test is skipped without ripgrep.
+      - run: sudo apt-get update && sudo apt-get install -y ripgrep
+      - run: make compile
+      - run: make test
+
+  optional-packages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: purcell/setup-emacs@v8.0
+        with:
+          version: '30.1'
+      - run: sudo apt-get update && sudo apt-get install -y ripgrep
+      - name: Install evil, consult, corfu and markdown-mode
+        run: emacs --batch -l test/install-optional.el
+      - name: Run the tests with them on the load path
+        run: make test DEPS="$(echo "$HOME"/.emacs.d/elpa/*/)"

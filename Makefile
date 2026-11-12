@@ -6,7 +6,7 @@ BATCH = $(EMACS) --batch -Q -L . $(addprefix -L ,$(DEPS))
 SOURCES = $(wildcard pumice*.el)
 # package-vc compiles every file in the checkout, so these have to be
 # clean as well.
-EXTRAS = test/pumice-test.el $(wildcard contrib/spacemacs/pumice/*.el)
+EXTRAS = $(wildcard test/*.el) $(wildcard contrib/spacemacs/pumice/*.el)
 
 .PHONY: all test compile checkdoc clean
 
