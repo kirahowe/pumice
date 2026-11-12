@@ -14,10 +14,10 @@
 
 ;;; Commentary:
 
-;; The `notes' command (bin/notes) runs this file in a batch Emacs.  It gives
-;; scripts and coding agents the index the editor uses: link resolution,
-;; backlinks, properties, daily notes and renames that rewrite links.  It
-;; needs neither a running Emacs nor Obsidian.
+;; The `pumice' command (bin/pumice) runs this file in a batch Emacs.  It
+;; gives scripts and coding agents the index the editor uses: link
+;; resolution, backlinks, properties, daily notes and renames that rewrite
+;; links.  It needs neither a running Emacs nor Obsidian.
 ;;
 ;; `pumice-cli-run' is the whole command and prints to `standard-output'.
 ;; `pumice-cli-main' wraps it for the command line.
@@ -32,10 +32,15 @@
 
 (defvar pumice-cli--opts nil "Options of the current run, as an alist.")
 
-(defconst pumice-cli--usage "\
-notes: read and change an Obsidian-format vault without Obsidian running.
+(defvar pumice-cli-program "pumice"
+  "The name the command line goes by in its help and its messages.
+bin/pumice passes the name it was started under, so a symlink to it under
+another name is called that.")
 
-Usage: notes [--vault NAME|DIR] [--json] [--abs] COMMAND [ARGS]
+(defconst pumice-cli--usage "\
+%1$s: read and change an Obsidian-format vault without Obsidian running.
+
+Usage: %1$s [--vault NAME|DIR] [--json] [--abs] COMMAND [ARGS]
 
 NOTE is a note's name as a [[link]] would write it, a path from the vault
 root, or a file path.
@@ -88,13 +93,13 @@ FILTERS
   --show KEYS    list only: add these properties as tab-separated columns.
                  modified, tags and aliases work here too.
 
-The vault is the one named by --vault, else by $NOTES_VAULT, else the one
+The vault is the one named by --vault, else by $PUMICE_VAULT, else the one
 holding the current directory, else the default.  Lists print one result
 per line with paths from the vault root; --abs makes those absolute and
 --json prints JSON instead.  Commands that answer with a single file
 print its absolute path.
 "
-  "What `notes help' prints.")
+  "What the help command prints: a format string taking the program's name.")
 
 ;;; Arguments
 
@@ -134,6 +139,11 @@ print its absolute path.
   "Each command as (NAME FUNCTION MIN-ARGS MAX-ARGS . OPTIONS).
 A MAX-ARGS of nil means any number.  --vault, --json, --abs and --help
 are accepted everywhere.")
+
+(defun pumice-cli--say (format &rest args)
+  "Print a message made from FORMAT and ARGS, after the program's name.
+It goes to standard error, leaving standard output to the results."
+  (message "%s: %s" pumice-cli-program (apply #'format format args)))
 
 (defun pumice-cli--usage-error (format &rest args)
   "Signal a usage error with a message made from FORMAT and ARGS."
@@ -232,13 +242,13 @@ so a date such as -7 is a positional, and a lone -- ends the options."
 
 (defun pumice-cli--vault ()
   "Return the vault this run is about."
-  (let ((spec (or (pumice-cli--opt "--vault") (getenv "NOTES_VAULT"))))
+  (let ((spec (or (pumice-cli--opt "--vault") (getenv "PUMICE_VAULT"))))
     (pumice-vault-at
      (cond
       ((or (null spec) (string-empty-p spec))
        (or (pumice-root-for default-directory)
            (ignore-errors (pumice--default-root))
-           (user-error "No vault found.  Pass --vault DIR or set NOTES_VAULT")))
+           (user-error "No vault found.  Pass --vault DIR or set PUMICE_VAULT")))
       ((cl-find spec (pumice-vault-roots)
                 :test (lambda (name root)
                         (string-equal-ignore-case
@@ -276,8 +286,8 @@ could say, or an alias."
                                 (mapconcat #'pumice-note-rel (take 5 near) ", "))
                       ""))))
      ((cdr same)
-      (message "notes: %d notes are called %s; using %s.md" (length same) name
-               (pumice-note-rel note))))
+      (pumice-cli--say "%d notes are called %s; using %s.md" (length same)
+                       name (pumice-note-rel note))))
     note))
 
 (defun pumice-cli--under-p (rel folder)
@@ -738,7 +748,7 @@ could say, or an alias."
     (when (equal new-rel (pumice-note-rel note))
       (user-error "%s is already called that" (pumice-note-rel note)))
     (let ((count (pumice-rename-note vault note new-rel)))
-      (message "notes: %d link%s rewritten" count (if (= count 1) "" "s"))
+      (pumice-cli--say "%d link%s rewritten" count (if (= count 1) "" "s"))
       (pumice-cli--emit-one `((path . ,path) (links_rewritten . ,count))
                             (concat path "\n")))))
 
@@ -749,8 +759,8 @@ could say, or an alias."
          (links (length (pumice-cli--incoming vault note)))
          (path (pumice-trash-note vault note)))
     (unless (zerop links)
-      (message "notes: %d link%s to it now lead%s nowhere" links
-               (if (= links 1) "" "s") (if (= links 1) "s" "")))
+      (pumice-cli--say "%d link%s to it now lead%s nowhere" links
+                       (if (= links 1) "" "s") (if (= links 1) "s" "")))
     (pumice-cli--emit-one `((path . ,path) (dangling_links . ,links))
                           (concat path "\n"))))
 
@@ -767,9 +777,10 @@ one that cannot be carried out."
                 (assoc name pumice-cli--commands)))
     (cond
      ((or (pumice-cli--opt "--help") (member name '(nil "help")))
-      (princ pumice-cli--usage))
+      (princ (format pumice-cli--usage pumice-cli-program)))
      ((null fn)
-      (pumice-cli--usage-error "Unknown command %s.  Try: notes help" name))
+      (pumice-cli--usage-error "Unknown command %s.  Try: %s help" name
+                               pumice-cli-program))
      (t
       (pcase-dolist (`(,opt . ,_) opts)
         (unless (member opt `("--vault" "--json" "--abs" ,@allowed))
@@ -777,12 +788,12 @@ one that cannot be carried out."
       (let ((count (length (cdr rest))))
         (when (or (< count min) (and max (> count max)))
           (pumice-cli--usage-error
-           "%s takes %s, not %d.  Try: notes help" name
+           "%s takes %s, not %d.  Try: %s help" name
            (cond ((null max) (format "at least %d argument%s" min
                                      (if (= min 1) "" "s")))
                  ((= min max) (format "%d argument%s" min (if (= min 1) "" "s")))
                  (t (format "%d to %d arguments" min max)))
-           count)))
+           count pumice-cli-program)))
       (funcall fn (cdr rest))))))
 
 (defun pumice-cli-main ()
@@ -796,6 +807,9 @@ one that cannot be carried out."
                           (cdr command-line-args-left)
                         command-line-args-left))))
     (setq command-line-args-left nil)
+    (when-let* ((name (getenv "PUMICE_PROGRAM"))
+                ((not (string-empty-p name))))
+      (setq pumice-cli-program name))
     (set-language-environment "UTF-8")
     (setq locale-coding-system 'utf-8
           ;; Nothing but the notes themselves should appear in a vault.
@@ -804,8 +818,8 @@ one that cannot be carried out."
     (kill-emacs
      (condition-case err
          (progn (pumice-cli-run args) 0)
-       (pumice-cli-usage (message "notes: %s" (cadr err)) 2)
-       (error (message "notes: %s" (error-message-string err)) 1)))))
+       (pumice-cli-usage (pumice-cli--say "%s" (cadr err)) 2)
+       (error (pumice-cli--say "%s" (error-message-string err)) 1)))))
 
 (provide 'pumice-cli)
 ;;; pumice-cli.el ends here

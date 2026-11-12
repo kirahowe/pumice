@@ -1,0 +1,42 @@
+#!/bin/sh
+# pumice: read and change an Obsidian-format vault from the command line.
+# Runs pumice-cli.el in a batch Emacs, so it needs neither a running Emacs
+# nor Obsidian.  `pumice help` lists the commands.
+#
+# A symlink to this file under another name works, and the command then
+# calls itself by that name.
+
+# Follow symlinks to this file, so the Lisp files are found when it is run
+# through a link in ~/.local/bin.
+self=$0
+while [ -L "$self" ]; do
+  link=$(readlink "$self")
+  case $link in
+    /*) self=$link ;;
+    *) self=$(dirname "$self")/$link ;;
+  esac
+done
+
+# The Lisp files are one level up in a checkout.  A package manager may put
+# them beside this file instead.
+lisp=$(cd "$(dirname "$self")" && pwd) || exit 1
+[ -e "$lisp/pumice-cli.el" ] || lisp=$(dirname "$lisp")
+
+emacs=${PUMICE_EMACS:-$(command -v emacs)}
+if [ -z "$emacs" ]; then
+  # A caller started from a macOS app has a short PATH with no Homebrew on it.
+  for candidate in /opt/homebrew/bin/emacs /usr/local/bin/emacs \
+                   /Applications/Emacs.app/Contents/MacOS/Emacs; do
+    if [ -x "$candidate" ]; then
+      emacs=$candidate
+      break
+    fi
+  done
+fi
+if [ -z "$emacs" ]; then
+  echo "$(basename "$0"): cannot find emacs; set PUMICE_EMACS to its path" >&2
+  exit 127
+fi
+
+PUMICE_PROGRAM=$(basename "$0") exec "$emacs" --batch -Q -L "$lisp" \
+  -l pumice-cli -f pumice-cli-main -- "$@"

@@ -897,13 +897,13 @@
 ;;; Command line
 
 (defun pumice-test--cli (&rest args)
-  "Run the notes command line ARGS in the fixture vault; return its output."
-  (let ((process-environment (cons "NOTES_VAULT" process-environment))
+  "Run the command line ARGS in the fixture vault; return its output."
+  (let ((process-environment (cons "PUMICE_VAULT" process-environment))
         (default-directory temporary-file-directory))
     (with-output-to-string (pumice-cli-run args))))
 
 (defun pumice-test--cli-lines (&rest args)
-  "Run the notes command line ARGS and return its output lines, sorted."
+  "Run the command line ARGS and return its output lines, sorted."
   (sort (split-string (apply #'pumice-test--cli args) "\n" t) #'string<))
 
 (defmacro pumice-test-at (time &rest body)
@@ -1136,8 +1136,15 @@
 
 (ert-deftest pumice-test-cli-usage ()
   (pumice-test-with-vault
-    (should (string-prefix-p "notes: " (pumice-test--cli)))
-    (should (string-prefix-p "notes: " (pumice-test--cli "list" "--help")))
+    (should (string-prefix-p "pumice: " (pumice-test--cli)))
+    (should (string-prefix-p "pumice: " (pumice-test--cli "list" "--help")))
+    ;; Under another name it calls itself that.
+    (let ((pumice-cli-program "notes"))
+      (should (string-prefix-p "notes: " (pumice-test--cli)))
+      (should (string-search "\nUsage: notes [" (pumice-test--cli)))
+      (let ((err (should-error (pumice-test--cli "nonsense")
+                               :type 'pumice-cli-usage)))
+        (should (string-search "Try: notes help" (cadr err)))))
     (dolist (args '(("nonsense") ("list" "--bogus") ("list" "extra")
                     ("path") ("backlinks" "Home" "--folder" "Notes")
                     ("list" "--limit" "many") ("list" "--folder")))
@@ -1148,5 +1155,33 @@
     (should (equal '((("--where" "b" "a") ("--json" . t) ("--tag" . "x")) "list")
                    (pumice-cli--parse
                     '("list" "--tag=x" "--json" "--where" "a" "--where" "b"))))))
+
+(defconst pumice-test--launcher
+  (expand-file-name "../bin/pumice"
+                    (file-name-directory (or load-file-name buffer-file-name)))
+  "The shell script that starts the command line.")
+
+(ert-deftest pumice-test-launcher ()
+  "The launcher finds the Lisp files, also when run through a symlink."
+  (skip-unless (not (memq system-type '(windows-nt ms-dos))))
+  (pumice-test-with-vault
+    (let* ((bin (file-name-as-directory (make-temp-file "pumice-bin" t)))
+           (link (expand-file-name "notes" bin))
+           (process-environment
+            (append (list (concat "PUMICE_EMACS="
+                                  (expand-file-name invocation-name
+                                                    invocation-directory))
+                          (concat "PUMICE_VAULT=" root))
+                    process-environment)))
+      (unwind-protect
+          (progn
+            (make-symbolic-link pumice-test--launcher link)
+            (should (member "Home.md"
+                            (process-lines pumice-test--launcher "list")))
+            (should (equal (list (directory-file-name root))
+                           (process-lines link "root")))
+            (should (string-prefix-p "notes: "
+                                     (car (process-lines link "help")))))
+        (delete-directory bin t)))))
 
 ;;; pumice-test.el ends here
