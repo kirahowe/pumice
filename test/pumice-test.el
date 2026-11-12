@@ -563,6 +563,18 @@
         (should (eq 'pumice-link (face-at "Follow-ups.base")))
         (should (eq 'pumice-tag (face-at "#gtd")))))))
 
+(ert-deftest pumice-test-opening-a-note-indexes-its-vault ()
+  "A note opened before anything has scanned the vault still sees its links."
+  (pumice-test-with-vault
+    (clrhash pumice--cache)
+    (pumice-test-in-note "Home.md"
+      (font-lock-mode 1)
+      (font-lock-ensure)
+      (search-forward "Weekly Review")
+      (should (eq 'pumice-link (get-text-property (match-beginning 0) 'face)))
+      (should (member "Weekly Review"
+                      (cdr (pumice-test--complete "\n[[Week")))))))
+
 (defun pumice-test--complete (text)
   "Insert TEXT at the end of the buffer and return (PREFIX . CANDIDATES)."
   (goto-char (point-max))

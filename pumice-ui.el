@@ -182,6 +182,10 @@ The rest of the commands are in `pumice-command-map'."
   :lighter " Pumice"
   (if pumice-mode
       (progn
+        ;; Highlighting and completion read the index without scanning,
+        ;; so the first note opened has to bring it up to date.
+        (when-let* ((root (pumice-root-for buffer-file-name)))
+          (pumice-vault-at root))
         (font-lock-add-keywords nil pumice--font-lock-keywords 'append)
         (make-local-variable 'font-lock-extra-managed-props)
         (dolist (prop '(mouse-face keymap help-echo))
