@@ -8,7 +8,7 @@ SOURCES = $(wildcard pumice*.el)
 # clean as well.
 EXTRAS = $(wildcard test/*.el) $(wildcard contrib/spacemacs/pumice/*.el)
 
-.PHONY: all test compile checkdoc clean
+.PHONY: all test compile checkdoc clean demo
 
 all: compile test
 
@@ -23,6 +23,10 @@ compile: clean
 checkdoc:
 	$(BATCH) --eval '(dolist (file command-line-args-left) (checkdoc-file file))' \
 	  $(SOURCES)
+
+# Record the animation in the README again.  See demo/record.sh.
+demo:
+	demo/record.sh
 
 clean:
 	rm -f *.elc test/*.elc contrib/spacemacs/pumice/*.elc

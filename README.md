@@ -4,6 +4,12 @@ Pumice lets you work in an Obsidian vault from Emacs, without Obsidian
 running. It is for people who keep their notes in a vault, already live in
 Emacs, and would rather not run a second, heavier app to read them.
 
+![Jumping to a note with a live preview, following a link and coming back, the backlinks panel turning an unlinked mention into a link, the folder tree, note names completing after two square brackets, a rename that rewrites three links, a line logged to today's note, and the same vault queried from the shell](demo/demo.gif)
+
+The recording has the optional packages installed (vertico, consult, corfu
+and markdown-mode) and uses the Atom One Dark theme. Pumice needs none of
+them.
+
 Pumice is the same volcanic glass as obsidian with most of the weight taken
 out, which is where the name comes from.
 
@@ -281,6 +287,7 @@ Windows locations come from Obsidian's documentation, and
 make test       # run the tests
 make compile    # byte-compile, with warnings as errors
 make            # both
+make demo       # record the animation at the top of this file again
 ```
 
 Every test builds a throwaway vault in the temp directory, so none of them
@@ -292,6 +299,9 @@ make test DEPS="/path/to/evil /path/to/goto-chg /path/to/consult"
 ```
 
 The test for the vim keys is skipped when evil is not on that list.
+
+[RELEASING.md](RELEASING.md) has the steps for a release, the demo
+recording among them.
 
 ## Licence
 
