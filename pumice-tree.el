@@ -51,6 +51,12 @@
   "RET" #'pumice-tree-visit
   "o" #'pumice-tree-peek
   "TAB" #'pumice-tree-toggle
+  "<right>" #'pumice-tree-expand
+  "<left>" #'pumice-tree-collapse
+  "E" #'pumice-tree-expand-all
+  "C" #'pumice-tree-collapse-all
+  "n" #'next-line
+  "p" #'previous-line
   "s" #'pumice-tree-sort
   "a" #'pumice-tree-new-note
   "r" #'pumice-tree-rename

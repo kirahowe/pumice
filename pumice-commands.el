@@ -20,6 +20,7 @@
 ;;; Code:
 
 (require 'pumice-core)
+(require 'xref)
 
 (declare-function consult--read "consult")
 (declare-function consult--file-preview "consult")
@@ -103,10 +104,16 @@ A NAME with a folder in it is taken relative to the vault root."
           (beginning-of-line)
         (goto-char start)))))
 
+(defun pumice--remember-position ()
+  "Record point, so that there is a way back after moving to another note.
+The way back is \\[xref-go-back], and evil's jump list when evil is loaded."
+  (when (fboundp 'evil-set-jump) (evil-set-jump))
+  (xref-push-marker-stack))
+
 (defun pumice--visit (path &optional heading other-window)
   "Visit PATH, remembering where we came from, then go to HEADING.
 Use the OTHER-WINDOW if that is non-nil."
-  (when (fboundp 'evil-set-jump) (evil-set-jump))
+  (pumice--remember-position)
   (let ((buffer (pumice--file-buffer path)))
     (if other-window
         (switch-to-buffer-other-window buffer)
@@ -264,23 +271,29 @@ With a prefix argument, open it in the OTHER-WINDOW."
       t)))
 
 ;;;###autoload
+(defun pumice-follow-link (&optional other-window)
+  "Follow the link at point to its note or file.
+A link to a note that does not exist yet starts that note.  Return nil if
+point is not on a link.  With a prefix argument, use the OTHER-WINDOW."
+  (interactive "P")
+  (when-let* ((found (pumice-link-at-point))
+              (link (car found))
+              (vault (pumice-current-vault)))
+    (pumice-open vault (pumice-link-target link) (pumice-link-heading link)
+                 (pumice-note-at vault buffer-file-name) other-window)
+    t))
+
+;;;###autoload
 (defun pumice-follow (&optional other-window)
   "Follow the link at point, or tick the checkbox on this line.
-A link to a note that does not exist yet starts that note.  Return nil if
-there was nothing here to act on.  With a prefix argument, use the
-OTHER-WINDOW."
+Failing both, open the web address at point.  Return nil if there was
+nothing here to act on.  With a prefix argument, use the OTHER-WINDOW."
   (interactive "P")
-  (let ((vault (pumice-current-vault)))
-    (cond
-     ((when-let* ((found (pumice-link-at-point))
-                  (link (car found)))
-        (pumice-open vault (pumice-link-target link) (pumice-link-heading link)
-                     (pumice-note-at vault buffer-file-name) other-window)
-        t))
-     ((pumice-toggle-checkbox))
-     ((when-let* ((url (thing-at-point 'url)))
-        (browse-url url)
-        t)))))
+  (cond ((pumice-follow-link other-window))
+        ((pumice-toggle-checkbox))
+        ((when-let* ((url (thing-at-point 'url)))
+           (browse-url url)
+           t))))
 
 ;;;###autoload
 (defun pumice-follow-other-window ()
@@ -395,7 +408,7 @@ TITLE is the note's name and TIME the moment the dates are taken from."
 (defun pumice-daily (&optional time)
   "Open the daily note for TIME, today by default."
   (interactive)
-  (when (fboundp 'evil-set-jump) (evil-set-jump))
+  (pumice--remember-position)
   (switch-to-buffer (pumice--daily-buffer (pumice-current-vault)
                                           (or time (pumice--now)))))
 

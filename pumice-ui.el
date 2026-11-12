@@ -85,7 +85,7 @@
                   (pumice-resolve-file vault target))))))
     (list 'face (if resolved 'pumice-link 'pumice-link-unresolved)
           'mouse-face 'highlight 'keymap pumice-link-map
-          'help-echo "RET or mouse-1: follow this link")))
+          'help-echo "mouse-1 or C-c C-o: follow this link")))
 
 (defconst pumice--font-lock-keywords
   `((,(lambda (limit) (pumice--match-outside-code pumice--wikilink-regexp limit))
@@ -165,7 +165,14 @@ Notes arrive most recently edited first, which is the order wanted."
   (font-lock-flush))
 
 (defvar-keymap pumice-mode-map
-  :doc "Keys for note buffers.  The vim bindings are set up in init.el.")
+  :doc "Keys for note buffers.
+\\`C-c C-o' follows a link to a note.  Anywhere else it is left to the
+major mode, which in a Markdown buffer follows the other kinds of link.
+The rest of the commands are in `pumice-command-map'."
+  "C-c C-o" `(menu-item "" pumice-follow-link
+                        :filter ,(lambda (command)
+                                   (and (save-match-data (pumice-link-at-point))
+                                        command))))
 
 ;;;###autoload
 (define-minor-mode pumice-mode

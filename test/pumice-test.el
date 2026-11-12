@@ -304,6 +304,38 @@
       (pumice-test-in-note "Home.md"
         (should-not (pumice-follow))))))
 
+(ert-deftest pumice-test-follow-link-only-acts-on-links ()
+  "`pumice-follow-link' leaves a checkbox alone, and so does its key."
+  (pumice-test-with-vault
+    (save-window-excursion
+      (pumice-test-in-note "Weekly Review.md"
+        (search-forward "- [ ] Empty")
+        (should-not (pumice-follow-link))
+        (should (string-search "- [ ] Empty" (buffer-string)))
+        ;; Off a link, the key is left to the major mode.
+        (should-not (eq 'pumice-follow-link (key-binding (kbd "C-c C-o"))))
+        (goto-char (point-min))
+        (search-forward "[[Ho")
+        (should (eq 'pumice-follow-link (key-binding (kbd "C-c C-o"))))
+        (should (pumice-follow-link))
+        (should (equal "Home.md" (file-name-nondirectory buffer-file-name)))))))
+
+(ert-deftest pumice-test-following-leaves-a-way-back ()
+  "After following a link, `xref-go-back' returns to where it was."
+  (pumice-test-with-vault
+    (save-window-excursion
+      (switch-to-buffer
+       (find-file-noselect (expand-file-name "Ongoing work.md" root)))
+      (goto-char (point-min))
+      (search-forward "[[Home")
+      (let ((origin (point)))
+        (should (pumice-follow))
+        (should (equal "Home.md" (file-name-nondirectory buffer-file-name)))
+        (xref-go-back)
+        (should (equal "Ongoing work.md"
+                       (file-name-nondirectory buffer-file-name)))
+        (should (= origin (point)))))))
+
 (ert-deftest pumice-test-follow-to-heading ()
   (pumice-test-with-vault
     (save-window-excursion
