@@ -4,7 +4,7 @@
 
 ;; Author: Kira Howe <email@kirahowe.com>
 ;; URL: https://github.com/kirahowe/pumice
-;; Version: 0.1.0-pre
+;; Version: 0.1.0
 ;; Package-Requires: ((emacs "29.1"))
 ;; Keywords: outlines, hypermedia, text
 ;; SPDX-License-Identifier: GPL-3.0-or-later
