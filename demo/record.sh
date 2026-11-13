@@ -48,11 +48,18 @@ done
 # The colours are the theme's own (One Dark), so that the shell part has the
 # same background as Emacs.  The speed-up keeps the whole thing near 40
 # seconds while the keys are still typed at a pace that looks human.
+#
+# The font is twice the size it is read at.  GitHub fits the picture to the
+# width of the README, and a high-density screen has two pixels for each
+# point of that width, so a picture drawn at reading size is stretched and
+# its text blurs.  Drawn at double size, it is only ever scaled down.  The
+# resvg renderer makes the same picture as the default one in a file about
+# a quarter smaller, and takes about ten seconds longer.
 one_dark=282c34,abb2bf,282c34,e06c75,98c379,e5c07b,61afef,c678dd,56b6c2,abb2bf
 one_dark=$one_dark,5c6370,e06c75,98c379,e5c07b,61afef,c678dd,56b6c2,ffffff
-agg --quiet --theme "$one_dark" \
+agg --quiet --theme "$one_dark" --renderer resvg \
     --font-family "JetBrainsMono Nerd Font Mono,JetBrains Mono,Menlo" \
-    --font-size 14 --line-height 1.3 --fps-cap 15 --speed 1.3 \
+    --font-size 28 --line-height 1.3 --fps-cap 15 --speed 1.3 \
     --idle-time-limit 2 --last-frame-duration 4 \
     "$work/demo.cast" "$demo/demo.gif"
 
