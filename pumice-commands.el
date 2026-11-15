@@ -392,10 +392,15 @@ TITLE is the note's name and TIME the moment the dates are taken from."
          (folder (or (pumice-setting vault :template-folder)
                      (user-error "This vault has no template folder")))
          (prefix (downcase (file-name-as-directory folder)))
-         (templates (cl-remove-if-not
-                     (lambda (note)
-                       (string-prefix-p prefix (downcase (pumice-note-rel note))))
-                     (pumice-notes vault)))
+         ;; `pumice-read-note' takes no notes to mean every note, so an
+         ;; empty folder has to stop here.
+         (templates (or (cl-remove-if-not
+                         (lambda (note)
+                           (string-prefix-p prefix
+                                            (downcase (pumice-note-rel note))))
+                         (pumice-notes vault))
+                        (user-error "The template folder %s has no notes in it"
+                                    folder)))
          (choice (pumice-read-note "Template: " vault templates t)))
     (insert (pumice--template-text
              vault (pumice-note-rel (car choice))

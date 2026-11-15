@@ -503,6 +503,16 @@ Create it, or change `pumice-vault-directories'"
         (pumice--daily-buffer v (encode-time '(0 0 12 14 8 2026 nil -1 nil)))
       (should (equal "## Log\n" (buffer-string))))))
 
+(ert-deftest pumice-test-insert-template-with-no-templates ()
+  "An empty template folder is reported, and no other note is offered."
+  (pumice-test-with-vault
+    (delete-file (expand-file-name "Templates/Day note.md" root))
+    (cl-letf (((symbol-function 'completing-read)
+               (lambda (&rest _) (error "Asked which template"))))
+      (let ((err (should-error (pumice-insert-template) :type 'user-error)))
+        (should (equal "The template folder Templates has no notes in it"
+                       (cadr err)))))))
+
 (ert-deftest pumice-test-daily-step ()
   (pumice-test-with-vault
     (cl-letf (((symbol-function 'pumice--now)
