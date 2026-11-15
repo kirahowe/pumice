@@ -372,8 +372,12 @@ could say, or an alias."
   "List the known vaults, marking the one a command run here would use.
 That vault is listed even if it is not a known one, as a folder named by
 --vault or $PUMICE_VAULT need not be."
-  (let* ((current (pumice-cli--vault-root))
-         (roots (pumice-vault-roots)))
+  (let* ((roots (pumice-vault-roots))
+         (root (pumice-cli--vault-root))
+         ;; A known vault can be reached by another spelling of its path,
+         ;; such as a symlink.  It is still that vault, and gets one line.
+         (current (and root (or (cl-find root roots :test #'file-equal-p)
+                                root))))
     (when (and current (not (member current roots)))
       (setq roots (append roots (list current))))
     (unless roots

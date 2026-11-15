@@ -1289,6 +1289,15 @@ Create it, or change `pumice-vault-directories'"
                                      (with-output-to-string
                                        (pumice-cli-run '("vaults")))))))
         (delete-directory other t)))
+    ;; A known vault named by another spelling of its path is listed once.
+    (let ((link (make-temp-name (expand-file-name "pumice-link"
+                                                  temporary-file-directory))))
+      (make-symbolic-link (directory-file-name root) link)
+      (unwind-protect
+          (should (equal (format "* %s\t%s\n" (pumice-cli--vault-name root)
+                                 (directory-file-name root))
+                         (pumice-test--cli "vaults" "--vault" link)))
+        (delete-file link)))
     ;; A bad name fails as it does for any other command.
     (should (equal (should-error (pumice-test--cli "root" "--vault" "Nope")
                                  :type 'user-error)
