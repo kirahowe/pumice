@@ -1261,6 +1261,10 @@ Create it, or change `pumice-vault-directories'"
       (should (equal (format "No vault called No such vault.  Known vaults: %s"
                              (file-name-nondirectory (directory-file-name root)))
                      (cadr err))))
+    ;; A path that leads nowhere is called a folder, not a vault's name.
+    (let ((err (should-error (pumice-test--cli "root" "--vault" "/no/such/dir")
+                             :type 'user-error)))
+      (should (equal "There is no folder at /no/such/dir" (cadr err))))
     (should (string-prefix-p "* " (pumice-test--cli "vaults")))
     (should (string-search "daily_format: YYYY/MM/MMM D, yyyy\n"
                            (pumice-test--cli "config")))

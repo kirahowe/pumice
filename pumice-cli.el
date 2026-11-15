@@ -253,10 +253,13 @@ so a date such as -7 is a positional, and a lone -- ends the options."
                      (string-equal-ignore-case
                       name (pumice-cli--vault-name root)))))
    ((file-directory-p spec) (file-name-as-directory (expand-file-name spec)))
-   ((pumice-vault-roots)
-    (user-error "No vault called %s.  Known vaults: %s" spec
-                (mapconcat #'pumice-cli--vault-name (pumice-vault-roots) ", ")))
-   (t (user-error "There is no folder at %s" spec))))
+   ;; Something with a folder part was meant as a path, so the names of
+   ;; the known vaults would not help.
+   ((or (file-name-directory spec) (null (pumice-vault-roots)))
+    (user-error "There is no folder at %s" spec))
+   (t (user-error "No vault called %s.  Known vaults: %s" spec
+                  (mapconcat #'pumice-cli--vault-name (pumice-vault-roots)
+                             ", ")))))
 
 (defun pumice-cli--vault-root ()
   "Return the root of the vault this run is about, or nil if there is none.
