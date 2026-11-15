@@ -193,7 +193,7 @@ export PATH="$HOME/.local/bin:$PATH"
 ```
 
 To check the install, list the vaults that the command can see. A `*` marks
-the default:
+the vault that a command run from the current directory would use:
 
 ```sh
 pumice vaults

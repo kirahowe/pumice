@@ -1295,6 +1295,29 @@ Create it, or change `pumice-vault-directories'"
                    (should-error (pumice-test--cli "vaults" "--vault" "Nope")
                                  :type 'user-error)))))
 
+(ert-deftest pumice-test-cli-vaults-from-inside-a-vault ()
+  "Run from inside a vault, the listing marks the vault other commands use."
+  (pumice-test-with-vault
+    (let* ((other (file-name-as-directory
+                   (file-truename (make-temp-file "pumice-other" t))))
+           (pumice-vault-directories (list root other))
+           (process-environment (cons "PUMICE_VAULT" process-environment))
+           (default-directory other))
+      (unwind-protect
+          (progn
+            (should (equal (concat (directory-file-name other) "\n")
+                           (with-output-to-string (pumice-cli-run '("root")))))
+            (should (equal (list (format "  %s\t%s"
+                                         (pumice-cli--vault-name root)
+                                         (directory-file-name root))
+                                 (format "* %s\t%s"
+                                         (pumice-cli--vault-name other)
+                                         (directory-file-name other)))
+                           (split-string (with-output-to-string
+                                           (pumice-cli-run '("vaults")))
+                                         "\n" t))))
+        (delete-directory other t)))))
+
 (ert-deftest pumice-test-cli-no-vaults ()
   "With no vault known, the command line says how to name one."
   (let ((pumice-vault-directories nil)

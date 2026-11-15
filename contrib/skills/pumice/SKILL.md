@@ -17,11 +17,12 @@ is installed, use `pumice` instead: `obsidian` starts the Obsidian app.
 
 ## Which vault
 
-`pumice vaults` lists the known vaults and marks the default with `*`. A
-command acts on the vault named by `--vault NAME|DIR`, else by
-`$PUMICE_VAULT`, else the vault holding the current directory, else the
-default. If the vault you want isn't listed, ask the user to set
-`PUMICE_VAULT`, or pass `--vault DIR`.
+`pumice vaults` lists the known vaults and puts a `*` beside the one that a
+command run here would act on. That is the vault named by `--vault
+NAME|DIR`, else by `$PUMICE_VAULT`, else the vault holding the current
+directory, else the vault that Obsidian last had open. If the vault you
+want isn't listed, ask the user to set `PUMICE_VAULT`, or pass `--vault
+DIR`.
 
 ## Finding things
 
