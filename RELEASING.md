@@ -31,24 +31,33 @@ attached to the latest release.
    make test DEPS="/path/to/evil /path/to/goto-chg /path/to/consult"
    ```
 
-3. Check that CI passes on `main`:
-
-   ```sh
-   gh run list --branch main --limit 1
-   ```
-
-4. Record the demo again, so that the animation shows this release:
+3. Record the demo again, so that the animation shows this release:
 
    ```sh
    make demo
    ```
 
-5. Watch the new `demo/demo.gif` in a browser, from start to finish.
+4. Watch the new `demo/demo.gif` in a browser, from start to finish.
    "Record the demo" below describes what a bad recording looks like.
 
-6. If the demo shows something that it didn't show before, update the alt
+5. If the demo shows something that it didn't show before, update the alt
    text of the image at the top of `README.md` and commit the change. The
    alt text lists what the demo shows.
+
+6. Push everything except the version change to `main`, and wait for CI to
+   pass on it:
+
+   ```sh
+   jj bookmark set main -r @-
+   jj git push -b main
+   gh run watch
+   ```
+
+   This push doesn't release anything, because an install with `:vc` stays
+   on the commit that last changed the `Version:` header. CI tests the
+   work on Emacs 29.1 and on the other versions in its matrix. If you
+   leave this step out, CI first sees the work when it tests the release
+   commit, and by then the tag is public.
 
 ## The release
 
@@ -56,7 +65,7 @@ attached to the latest release.
    the commit:
 
    ```sh
-   commitp -m "Release 0.2.0"
+   jj commit -m "Release 0.2.0"
    ```
 
 2. Move `main` to that commit, tag it, and push the bookmark and the tag:
