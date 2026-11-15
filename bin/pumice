@@ -22,7 +22,20 @@ done
 lisp=$(cd "$(dirname "$self")" && pwd) || exit 1
 [ -e "$lisp/pumice-cli.el" ] || lisp=$(dirname "$lisp")
 
-emacs=${PUMICE_EMACS:-$(command -v emacs)}
+if [ -n "$PUMICE_EMACS" ]; then
+  # Checked here because exec would fail with a less helpful message.  A
+  # bare name is looked up on PATH, as exec would do.
+  case $PUMICE_EMACS in
+    */*) emacs=$PUMICE_EMACS ;;
+    *) emacs=$(command -v "$PUMICE_EMACS") ;;
+  esac
+  if [ ! -f "$emacs" ] || [ ! -x "$emacs" ]; then
+    echo "$(basename "$0"): PUMICE_EMACS is set to $PUMICE_EMACS, which is not an executable file" >&2
+    exit 127
+  fi
+else
+  emacs=$(command -v emacs)
+fi
 if [ -z "$emacs" ]; then
   # A caller started from a macOS app has a short PATH with no Homebrew on it.
   for candidate in /opt/homebrew/bin/emacs /usr/local/bin/emacs \
