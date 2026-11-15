@@ -59,7 +59,8 @@ With pumice, you can:
   frontmatter.
 - Search the text of every note.
 - Ask the same questions from scripts and coding agents with the `pumice`
-  command line, which doesn't need a running Emacs.
+  command line, which doesn't need a running Emacs. See
+  [Coding agents](#coding-agents).
 
 ## Limitations
 
@@ -98,6 +99,10 @@ to `load-path`, and add `(require 'pumice)` before those two lines.
 vault. `pumice-command-map` holds the commands. Pumice doesn't bind the map
 to any key, so `C-c n` in the example is only a suggestion.
 
+By default, Emacs opens Markdown files in `fundamental-mode`. Pumice works
+there, but you get Markdown highlighting and editing commands only if you
+also install [markdown-mode](https://jblevins.org/projects/markdown-mode/).
+
 ## Vaults
 
 If Obsidian has run on this computer, pumice reads Obsidian's list of vaults,
@@ -119,6 +124,164 @@ If Obsidian was never installed on this computer, list your vaults in
 A folder in this list doesn't need a `.obsidian` directory, so a plain folder
 of Markdown files also works. Such a folder gets the defaults: daily notes
 named `YYYY-MM-DD` at the top of the folder, and no templates.
+
+### Start a new vault without Obsidian
+
+A vault is a folder of notes. Pumice doesn't create the folder, so create it
+yourself:
+
+```sh
+mkdir -p ~/Notes
+```
+
+Then name it in your init file:
+
+```elisp
+(setq pumice-vault-directories '("~/Notes"))
+```
+
+If a folder in `pumice-vault-directories` doesn't exist, pumice reports an
+error that tells you to create it.
+
+The command line doesn't read your init file, so set `PUMICE_VAULT` in your
+shell profile to tell it where the vault is:
+
+```sh
+export PUMICE_VAULT=~/Notes
+```
+
+With the command map on `C-c n`, start with these keys in the empty vault:
+
+- `C-c n d` opens today's daily note.
+- `C-c n n` followed by a new name starts a note. Pumice creates the file
+  when you save it.
+- `C-c n a` adds a timestamped line to today's note, and creates the note if
+  it doesn't exist yet.
+
+## Command line
+
+`bin/pumice` runs the same index in a batch Emacs, so it doesn't need a
+running Emacs or a running Obsidian. It needs only Emacs 29.1 or later. It
+starts Emacs with `--batch -Q`, so it doesn't read your init file.
+
+If you installed the package with `:vc` or `package-vc-install`, link the
+script from the package's directory:
+
+```sh
+mkdir -p ~/.local/bin
+ln -s ~/.emacs.d/elpa/pumice/bin/pumice ~/.local/bin/pumice
+```
+
+This path assumes that your Emacs directory is `~/.emacs.d`. If it's
+`~/.config/emacs`, the package is in `~/.config/emacs/elpa/pumice` instead.
+
+If you only want the command line, you don't need to configure Emacs at
+all. Clone the repository and link the script from the clone:
+
+```sh
+git clone https://github.com/kirahowe/pumice ~/src/pumice
+mkdir -p ~/.local/bin
+ln -s ~/src/pumice/bin/pumice ~/.local/bin/pumice
+```
+
+`~/.local/bin` must be on your `PATH`, and on macOS it isn't by default. To
+add it, put this line in your shell profile, such as `~/.zshrc`, and open a
+new terminal:
+
+```sh
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+To check the install, list the vaults that the command can see. A `*` marks
+the default:
+
+```sh
+pumice vaults
+```
+
+The command looks for `emacs` on your `PATH`, then in Homebrew's location
+and in `/Applications/Emacs.app`. To use another Emacs, set `PUMICE_EMACS`
+to its executable.
+
+For example:
+
+```sh
+pumice list --tag project --where status=active --show next_action
+pumice backlinks "Weekly Review"
+pumice tasks --folder Projects
+pumice daily                        # path of today's note, created if missing
+pumice log "Sent the invoice"       # a timestamped line under today's Log heading
+pumice new "Title" --template "Meeting" --stdin < body.md
+pumice set "Some note" status=done
+pumice rename "Old name" "New name" # rewrites every link to the note
+pumice unresolved                   # links that lead nowhere
+```
+
+`pumice help` lists every command. Commands that return a list print one
+result per line, with paths relative to the vault root, or JSON if you pass
+`--json`.
+
+The command picks a vault in this order: the vault named by `--vault`, then
+the one named by `$PUMICE_VAULT`, then the vault that contains the current
+directory, and then the vault that Obsidian last had open. Both `--vault`
+and `PUMICE_VAULT` take a vault's name or a folder.
+
+The current directory counts as being in a vault only if the vault is in
+Obsidian's list, or if the directory or a folder above it has a `.obsidian`
+directory. On a computer without Obsidian, `cd ~/Notes` isn't enough for a
+plain folder, so set `PUMICE_VAULT` or pass `--vault`.
+
+You can symlink the script under another name. The command then uses that
+name in its help and its messages.
+
+## Coding agents
+
+A coding agent can read and change your notes through the `pumice` command.
+Install the command line first, as described above. If Obsidian doesn't
+know the vault, set `PUMICE_VAULT` in the environment that the agent runs
+in, because the command doesn't read `pumice-vault-directories`.
+
+### Claude Code
+
+The repository includes a skill for Claude Code in `contrib/skills/pumice`.
+Claude Code loads personal skills from `~/.claude/skills`, so link the
+directory there. For a package installed with `:vc` or
+`package-vc-install`:
+
+```sh
+mkdir -p ~/.claude/skills
+ln -s ~/.emacs.d/elpa/pumice/contrib/skills/pumice ~/.claude/skills/pumice
+```
+
+For a clone of the repository:
+
+```sh
+mkdir -p ~/.claude/skills
+ln -s ~/src/pumice/contrib/skills/pumice ~/.claude/skills/pumice
+```
+
+### Other agents
+
+Tell your agent how to use the command by pasting this into `AGENTS.md`, or
+into whichever instruction file it reads:
+
+```markdown
+## Notes
+
+My notes are Markdown files in an Obsidian-format vault. Work with them
+through the `pumice` command. `pumice help` lists every command.
+
+- `pumice path NAME` prints a note's absolute path. To change a note's
+  text, edit that file.
+- Rename, move and delete notes with `pumice rename` and `pumice trash`.
+  `mv` and `rm` leave the links to the note dangling.
+- `pumice daily` prints the path of today's note, and `pumice log TEXT`
+  adds a timestamped line to it.
+- `pumice root` prints the vault's folder, for `rg`. Paths contain
+  spaces, so quote them.
+- Use `pumice` in place of the `obsidian` command, which starts the
+  Obsidian app.
+```
 
 ## Keys
 
@@ -261,45 +424,6 @@ and puts the commands under `SPC a N`. To use a different key, set
 ```elisp
 (pumice :variables pumice-leader-key "on")
 ```
-
-## Command line
-
-`bin/pumice` runs the same index in a batch Emacs, so it doesn't need a
-running Emacs or a running Obsidian. Link the script into a directory on your
-`PATH`:
-
-```sh
-ln -s /path/to/pumice/bin/pumice ~/.local/bin/pumice
-```
-
-If you installed pumice with `package-vc-install`, the script is in the
-`pumice` directory under your `package-user-dir`.
-
-For example:
-
-```sh
-pumice list --tag project --where status=active --show next_action
-pumice backlinks "Weekly Review"
-pumice tasks --folder Projects
-pumice daily                        # path of today's note, created if missing
-pumice log "Sent the invoice"       # a timestamped line under today's Log heading
-pumice new "Title" --template "Meeting" --stdin < body.md
-pumice set "Some note" status=done
-pumice rename "Old name" "New name" # rewrites every link to the note
-pumice unresolved                   # links that lead nowhere
-```
-
-`pumice help` lists every command. Commands that return a list print one
-result per line, with paths relative to the vault root, or JSON if you pass
-`--json`.
-
-The command uses the vault named by `--vault` or `$PUMICE_VAULT`. If neither
-is set, it uses the vault that contains the current directory, and then the
-default vault. If `emacs` isn't on your `PATH`, set `PUMICE_EMACS` to your
-Emacs executable.
-
-You can symlink the script under another name. The command then uses that
-name in its help and its messages.
 
 ## Performance
 
