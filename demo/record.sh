@@ -1,5 +1,7 @@
 #!/bin/sh
-# Record demo/demo.gif, the animation at the top of the README.
+# Record demo/demo.gif, the animation at the top of the README.  The GIF is
+# not committed.  It is attached to each GitHub release, and the README
+# shows the one from the latest release.  RELEASING.md has the steps.
 #
 # It needs tmux, asciinema and agg, which are all in Homebrew, and an Emacs
 # that can draw popups in a terminal, which means Emacs 31 or later.  Run it

@@ -1,7 +1,7 @@
 # Releasing pumice
 
 A release is the commit on `main` that changes the `Version:` header in
-`pumice.el`, plus a tag on that commit.
+`pumice.el`, a tag on that commit, and a GitHub release for the tag.
 
 The commit matters more than the tag. Emacs treats the commit that last
 changed the `Version:` header as the latest release. By default, use-package's
@@ -9,6 +9,12 @@ changed the `Version:` header as the latest release. By default, use-package's
 for the last release. The version bump must therefore be the last commit of
 the release, after everything the release should contain, and no other commit
 should change that line.
+
+The GitHub release holds `demo.gif`, the animation at the top of the README.
+The GIF isn't committed, because every recording would add about 640 KB to
+the history that each new install clones. The README links to
+`releases/latest/download/demo.gif`, which GitHub redirects to the file
+attached to the latest release.
 
 ## Before the release
 
@@ -31,8 +37,7 @@ should change that line.
    gh run list --branch main --limit 1
    ```
 
-4. Record the demo again, so that the animation at the top of the README
-   shows this release:
+4. Record the demo again, so that the animation shows this release:
 
    ```sh
    make demo
@@ -42,16 +47,8 @@ should change that line.
    "Record the demo" below describes what a bad recording looks like.
 
 6. If the demo shows something that it didn't show before, update the alt
-   text of the image at the top of `README.md`. The alt text lists what
-   the demo shows.
-
-7. Commit the recording, along with the README if you changed it. This
-   commit comes before the release commit, which contains only the
-   version change:
-
-   ```sh
-   commitp -m "Record the demo for 0.2.0"
-   ```
+   text of the image at the top of `README.md` and commit the change. The
+   alt text lists what the demo shows.
 
 ## The release
 
@@ -70,6 +67,16 @@ should change that line.
    jj git push -b main
    jj git push --tag v0.2.0
    ```
+
+3. Create the GitHub release and attach the recording:
+
+   ```sh
+   gh release create v0.2.0 demo/demo.gif --verify-tag --title 0.2.0 --generate-notes
+   ```
+
+   `--generate-notes` writes notes that link to the changes since the
+   previous release. The file must be named `demo.gif`. A latest release
+   without that file leaves a broken image at the top of the README.
 
 ## After the release
 
@@ -95,14 +102,15 @@ should change that line.
 
 ## Record the demo
 
-`demo/demo.gif`, the animation at the top of the README, is a recording of a
-real session. To make it, run:
+The animation at the top of the README is a recording of a real session. To
+make it, run:
 
 ```sh
 make demo
 ```
 
-The command takes about a minute and needs the following:
+The command writes `demo/demo.gif`, which Git ignores. It takes about a
+minute and needs the following:
 
 - `tmux`, `asciinema`, and `agg`, which are all in Homebrew.
 - Emacs 31 or later, because the popup after `[[` is drawn in a terminal.
@@ -126,7 +134,13 @@ Each kind of change has its own file:
 - To change the size, the speed, or the colours, edit the `agg` call at the
   end of `demo/record.sh`.
 
-Watch the result before you commit it. If a key reaches Emacs a moment early,
-or a command's keys have changed, the rest of the recording types into the
-wrong place. The bar at the top of the recording names each key and the
-command it ran, so this kind of mistake is easy to spot.
+Watch the result before you attach it to a release. If a key reaches Emacs a
+moment early, or a command's keys have changed, the rest of the recording
+types into the wrong place. The bar at the top of the recording names each
+key and the command it ran, so this kind of mistake is easy to spot.
+
+To replace the recording on a release that already exists, upload it again:
+
+```sh
+gh release upload v0.2.0 demo/demo.gif --clobber
+```

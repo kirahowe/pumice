@@ -10,7 +10,7 @@ Pumice is an Emacs package for working in an Obsidian vault without running
 Obsidian. It's for people who keep their notes in a vault, already work in
 Emacs, and would rather not run a second, heavier app to read them.
 
-![Jumping to a note with a live preview, following a link and coming back, the backlinks panel turning an unlinked mention into a link, the folder tree, note names completing after two square brackets, a rename that rewrites three links, a line logged to today's note, and the same vault queried from the shell](demo/demo.gif)
+![Jumping to a note with a live preview, following a link and coming back, the backlinks panel turning an unlinked mention into a link, the folder tree, note names completing after two square brackets, a rename that rewrites three links, a line logged to today's note, and the same vault queried from the shell](https://github.com/kirahowe/pumice/releases/latest/download/demo.gif)
 
 The recording uses the Atom One Dark theme and the optional packages
 vertico, consult, corfu, and markdown-mode. Pumice doesn't need any of them.
