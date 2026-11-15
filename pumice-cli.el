@@ -240,23 +240,32 @@ so a date such as -7 is a positional, and a lone -- ends the options."
   "Return the name of the vault at ROOT: its folder's name."
   (file-name-nondirectory (directory-file-name root)))
 
+(defun pumice-cli--spec ()
+  "Return the vault named by --vault or $PUMICE_VAULT, or nil if neither is."
+  (let ((spec (or (pumice-cli--opt "--vault") (getenv "PUMICE_VAULT"))))
+    (and spec (not (string-empty-p spec)) spec)))
+
+(defun pumice-cli--spec-root (spec)
+  "Return the root of the vault SPEC names, a vault's name or a folder."
+  (cond
+   ((cl-find spec (pumice-vault-roots)
+             :test (lambda (name root)
+                     (string-equal-ignore-case
+                      name (pumice-cli--vault-name root)))))
+   ((file-directory-p spec) (file-name-as-directory (expand-file-name spec)))
+   ((pumice-vault-roots)
+    (user-error "No vault called %s.  Known vaults: %s" spec
+                (mapconcat #'pumice-cli--vault-name (pumice-vault-roots) ", ")))
+   (t (user-error "There is no folder at %s" spec))))
+
 (defun pumice-cli--vault ()
   "Return the vault this run is about."
-  (let ((spec (or (pumice-cli--opt "--vault") (getenv "PUMICE_VAULT"))))
-    (pumice-vault-at
-     (cond
-      ((or (null spec) (string-empty-p spec))
-       (or (pumice-root-for default-directory)
-           (ignore-errors (pumice--default-root))
-           (user-error "No vault found.  Pass --vault DIR or set PUMICE_VAULT")))
-      ((cl-find spec (pumice-vault-roots)
-                :test (lambda (name root)
-                        (string-equal-ignore-case
-                         name (pumice-cli--vault-name root)))))
-      ((file-directory-p spec) (file-name-as-directory (expand-file-name spec)))
-      (t (user-error "No vault called %s.  Known vaults: %s" spec
-                     (mapconcat #'pumice-cli--vault-name (pumice-vault-roots)
-                                ", ")))))))
+  (pumice-vault-at
+   (if-let* ((spec (pumice-cli--spec)))
+       (pumice-cli--spec-root spec)
+     (or (pumice-root-for default-directory)
+         (ignore-errors (pumice--default-root))
+         (user-error "No vault found.  Pass --vault DIR or set PUMICE_VAULT")))))
 
 (defun pumice-cli--find (vault name)
   "Return the note NAME means in VAULT, or nil.
@@ -354,14 +363,25 @@ could say, or an alias."
 ;;; Looking around
 
 (defun pumice-cli--vaults (_args)
-  "List the known vaults."
-  (let ((default (ignore-errors (pumice--default-root))))
+  "List the known vaults.
+A vault named by --vault or $PUMICE_VAULT is listed too, known or not,
+and marked as the default, since it is the one other commands would use."
+  (let* ((spec (pumice-cli--spec))
+         (default (if spec
+                      (pumice-cli--spec-root spec)
+                    (ignore-errors (pumice--default-root))))
+         (roots (pumice-vault-roots)))
+    (when (and spec (not (member default roots)))
+      (setq roots (append roots (list default))))
+    (unless roots
+      (pumice-cli--say
+       "No vaults found.  Pass --vault DIR or set PUMICE_VAULT"))
     (pumice-cli--emit
      (mapcar (lambda (root)
                `((name . ,(pumice-cli--vault-name root))
                  (path . ,(directory-file-name root))
                  (default . ,(if (equal root default) t :false))))
-             (pumice-vault-roots))
+             roots)
      (lambda (item)
        (format "%s %s\t%s" (if (eq t (alist-get 'default item)) "*" " ")
                (alist-get 'name item) (alist-get 'path item))))))

@@ -203,9 +203,12 @@ The rest of the commands are in `pumice-command-map'."
 ;;;###autoload
 (defun pumice-mode-maybe ()
   "Turn on `pumice-mode' if this buffer is a Markdown file in a vault."
-  (when (and buffer-file-name
-             (string-suffix-p ".md" buffer-file-name t)
-             (pumice-root-for buffer-file-name))
+  ;; A vault folder that is listed but missing is not a vault yet.  The
+  ;; mode would complain about it, and opening a file should not.
+  (when-let* (((and buffer-file-name
+                    (string-suffix-p ".md" buffer-file-name t)))
+              (root (pumice-root-for buffer-file-name))
+              ((file-directory-p root)))
     (pumice-mode 1)))
 
 ;;;###autoload

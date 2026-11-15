@@ -132,7 +132,52 @@
     (cl-letf (((symbol-function 'pumice--registry-candidates)
                (lambda () '("/no/such/obsidian.json"))))
       (should-not (pumice-vault-roots))
-      (should-error (pumice--default-root) :type 'user-error))))
+      ;; The error shows what the setting looks like, and switching vaults
+      ;; gives the same one rather than a prompt with nothing in it.
+      (let ((err (should-error (pumice--default-root) :type 'user-error)))
+        (should (string-search "list of folders, such as (\"~/Notes\")"
+                               (cadr err)))
+        (should (equal err (should-error (pumice-switch-vault)
+                                         :type 'user-error)))))))
+
+(ert-deftest pumice-test-missing-vault-folder ()
+  "A listed folder that does not exist is refused, and is not created."
+  (let* ((parent (file-name-as-directory (make-temp-file "pumice-test" t)))
+         (root (expand-file-name "Notes/" parent))
+         (pumice-vault-directories (list root))
+         (pumice-default-root nil)
+         (pumice--cache (make-hash-table :test 'equal))
+         (process-environment (cons "PUMICE_VAULT" process-environment)))
+    (unwind-protect
+        (progn
+          (let ((err (should-error (pumice-current-vault) :type 'user-error)))
+            (should (equal (format-message "The vault folder %s does not exist.  \
+Create it, or change `pumice-vault-directories'"
+                                           (abbreviate-file-name
+                                            (directory-file-name root)))
+                           (cadr err)))
+            ;; The command line reaches the same error.
+            (should (equal err (should-error (pumice-cli-run '("list"))
+                                             :type 'user-error))))
+          ;; Visiting a file there is quiet and leaves the mode off.
+          (let ((buffer (find-file-noselect (expand-file-name "Idea.md" root))))
+            (unwind-protect
+                (should-not (buffer-local-value 'pumice-mode buffer))
+              (kill-buffer buffer)))
+          (should-not (file-exists-p root)))
+      (delete-directory parent t))))
+
+(ert-deftest pumice-test-random-with-no-notes ()
+  "Picking a random note from an empty vault says so in words."
+  (let* ((root (file-name-as-directory
+                (file-truename (make-temp-file "pumice-test" t))))
+         (pumice-vault-directories (list root))
+         (pumice-default-root root)
+         (pumice--cache (make-hash-table :test 'equal)))
+    (unwind-protect
+        (let ((err (should-error (pumice-random) :type 'user-error)))
+          (should (string-prefix-p "There are no notes in " (cadr err))))
+      (delete-directory root t))))
 
 (ert-deftest pumice-test-a-folder-with-obsidian-settings-is-a-vault ()
   "A file under a .obsidian folder is in a vault, registered or not."
@@ -1169,12 +1214,63 @@
                                      (upcase (file-name-nondirectory
                                               (directory-file-name root)))
                                      "root")))
-    (should-error (pumice-test--cli "root" "--vault" "No such vault")
-                  :type 'user-error)
+    (let ((err (should-error (pumice-test--cli "root" "--vault" "No such vault")
+                             :type 'user-error)))
+      (should (equal (format "No vault called No such vault.  Known vaults: %s"
+                             (file-name-nondirectory (directory-file-name root)))
+                     (cadr err))))
     (should (string-prefix-p "* " (pumice-test--cli "vaults")))
     (should (string-search "daily_format: YYYY/MM/MMM D, yyyy\n"
                            (pumice-test--cli "config")))
     (should (string-search "new_note_folder: Inbox\n" (pumice-test--cli "config")))))
+
+(ert-deftest pumice-test-cli-vaults-named-on-the-command-line ()
+  "A vault given by --vault or $PUMICE_VAULT is listed and marked."
+  (pumice-test-with-vault
+    (let ((other (file-name-as-directory
+                  (file-truename (make-temp-file "pumice-other" t)))))
+      (unwind-protect
+          (progn
+            (should (equal (list (format "  %s\t%s"
+                                         (file-name-nondirectory
+                                          (directory-file-name root))
+                                         (directory-file-name root))
+                                 (format "* %s\t%s"
+                                         (file-name-nondirectory
+                                          (directory-file-name other))
+                                         (directory-file-name other)))
+                           (split-string (pumice-test--cli "vaults" "--vault" other)
+                                         "\n" t)))
+            (let ((process-environment (cons (concat "PUMICE_VAULT=" other)
+                                             process-environment)))
+              (should (string-search (concat "* " (pumice-cli--vault-name other))
+                                     (with-output-to-string
+                                       (pumice-cli-run '("vaults")))))))
+        (delete-directory other t)))
+    ;; A bad name fails as it does for any other command.
+    (should (equal (should-error (pumice-test--cli "root" "--vault" "Nope")
+                                 :type 'user-error)
+                   (should-error (pumice-test--cli "vaults" "--vault" "Nope")
+                                 :type 'user-error)))))
+
+(ert-deftest pumice-test-cli-no-vaults ()
+  "With no vault known, the command line says how to name one."
+  (let ((pumice-vault-directories nil)
+        (pumice-obsidian-registry nil)
+        (pumice--vault-roots nil)
+        (pumice-default-root nil)
+        said)
+    (cl-letf (((symbol-function 'pumice--registry-candidates)
+               (lambda () '("/no/such/obsidian.json")))
+              ((symbol-function 'pumice-cli--say)
+               (lambda (format &rest args) (push (apply #'format format args) said))))
+      (should (equal "" (pumice-test--cli "vaults")))
+      (should (equal "[]\n" (pumice-test--cli "vaults" "--json")))
+      (should (equal 2 (length said)))
+      (should (string-search "--vault DIR or set PUMICE_VAULT" (car said)))
+      (let ((err (should-error (pumice-test--cli "list" "--vault" "/no/such/dir")
+                               :type 'user-error)))
+        (should (equal "There is no folder at /no/such/dir" (cadr err)))))))
 
 (ert-deftest pumice-test-cli-usage ()
   (pumice-test-with-vault

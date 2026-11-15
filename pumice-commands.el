@@ -234,8 +234,12 @@ With a prefix argument, open it in the OTHER-WINDOW."
 (defun pumice-random ()
   "Open a note picked at random."
   (interactive)
-  (pumice--visit (pumice-note-path (seq-random-elt
-                                    (pumice-notes (pumice-current-vault))))))
+  (let* ((vault (pumice-current-vault))
+         (notes (pumice-notes vault)))
+    (unless notes
+      (user-error "There are no notes in %s yet"
+                  (abbreviate-file-name (directory-file-name (pumice--root vault)))))
+    (pumice--visit (pumice-note-path (seq-random-elt notes)))))
 
 ;;;###autoload
 (defun pumice-switch-vault ()
@@ -246,7 +250,10 @@ With a prefix argument, open it in the OTHER-WINDOW."
                                  (directory-file-name root))
                                 root))
                         (pumice-vault-roots)))
-         (name (completing-read "Vault: " roots nil t)))
+         ;; A prompt with nothing to choose could only be quit.
+         (name (if roots
+                   (completing-read "Vault: " roots nil t)
+                 (pumice--no-vault))))
     (setq pumice-default-root (cdr (assoc name roots)))
     (pumice--find (pumice-vault-at pumice-default-root))))
 

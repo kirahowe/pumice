@@ -34,7 +34,8 @@
 When nil, the vaults are the ones Obsidian has opened on this computer,
 read from `pumice-obsidian-registry'.  Set this where Obsidian is not
 installed, or to choose the folders yourself.  A folder needs no .obsidian
-directory in it to be listed here."
+directory in it to be listed here, but it has to exist: pumice does not
+create it."
   :type '(repeat directory))
 
 (defcustom pumice-obsidian-registry nil
@@ -141,6 +142,11 @@ them act on the vault they are showing.")
           (when-let* ((dir (locate-dominating-file file ".obsidian")))
             (file-name-as-directory (expand-file-name dir)))))))
 
+(defun pumice--no-vault ()
+  "Signal that no vault is known, saying how to name one."
+  (user-error "No vault found.  Set `pumice-vault-directories' to a list of \
+folders, such as (\"~/Notes\")"))
+
 (defun pumice--default-root ()
   "Return the fallback vault root, choosing one on first use."
   (or pumice-default-root
@@ -148,7 +154,7 @@ them act on the vault they are showing.")
             (or (and (not pumice-vault-directories)
                      (car (cl-find-if #'cdr (pumice--registry))))
                 (car (pumice-vault-roots))
-                (user-error "No vault found; set `pumice-vault-directories'")))))
+                (pumice--no-vault)))))
 
 (defun pumice-vault-at (root &optional no-refresh)
   "Return the vault rooted at ROOT.
@@ -405,6 +411,14 @@ Only notes whose modification time changed are parsed again."
             (null (pumice--last-scan vault))
             (> (- (float-time) (pumice--last-scan vault))
                pumice-refresh-interval))
+    ;; Every look at a vault's files comes through here, so this is the one
+    ;; place a missing folder is caught.  It is never created: that would
+    ;; be a change the user did not ask for and cannot undo.
+    (unless (file-directory-p (pumice--root vault))
+      (user-error "The vault folder %s does not exist.  Create it, or change \
+`pumice-vault-directories'"
+                  (abbreviate-file-name
+                   (directory-file-name (pumice--root vault)))))
     (let ((notes (pumice--notes vault))
           (seen (make-hash-table :test 'equal))
           (changed nil) files)
