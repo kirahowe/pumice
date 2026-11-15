@@ -31,8 +31,27 @@ should change that line.
    gh run list --branch main --limit 1
    ```
 
-4. If anything that users can see has changed, record the demo again (see
-   "Record the demo" below) and update the README.
+4. Record the demo again, so that the animation at the top of the README
+   shows this release:
+
+   ```sh
+   make demo
+   ```
+
+5. Watch the new `demo/demo.gif` in a browser, from start to finish.
+   "Record the demo" below describes what a bad recording looks like.
+
+6. If the demo shows something that it didn't show before, update the alt
+   text of the image at the top of `README.md`. The alt text lists what
+   the demo shows.
+
+7. Commit the recording, along with the README if you changed it. This
+   commit comes before the release commit, which contains only the
+   version change:
+
+   ```sh
+   commitp -m "Record the demo for 0.2.0"
+   ```
 
 ## The release
 
@@ -71,8 +90,8 @@ should change that line.
    The output should end with `VC package ‘pumice’ installed`, name the new
    version and the release commit, and contain no compiler warnings.
 
-3. Check that the badges at the top of the README show CI passing and the
-   new version.
+3. Open the README on GitHub. Check that the animation is the new
+   recording, and that the badges show CI passing and the new version.
 
 ## Record the demo
 
