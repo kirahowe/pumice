@@ -167,6 +167,48 @@ Create it, or change `pumice-vault-directories'"
           (should-not (file-exists-p root)))
       (delete-directory parent t))))
 
+(ert-deftest pumice-test-missing-default-vault ()
+  "A default vault whose folder is missing lasts only while it is listed."
+  (let* ((parent (file-name-as-directory
+                  (file-truename (make-temp-file "pumice-test" t))))
+         (typo (expand-file-name "Ntoes/" parent))
+         (notes (expand-file-name "Notes/" parent))
+         (work (expand-file-name "Work/" parent))
+         (pumice-vault-directories (list typo))
+         (pumice-default-root nil)
+         (pumice--cache (make-hash-table :test 'equal)))
+    (unwind-protect
+        (progn
+          (make-directory notes)
+          (make-directory work)
+          (should-error (pumice-current-vault) :type 'user-error)
+          ;; Correcting the setting is all it takes to get going.
+          (setq pumice-vault-directories (list notes work))
+          (should (equal notes (pumice--root (pumice-current-vault))))
+          ;; A default that worked and then lost its folder is reported.
+          ;; Falling back to the next vault would send a log entry there.
+          (setq pumice-default-root work)
+          (delete-directory work)
+          (let ((err (should-error (pumice-current-vault) :type 'user-error)))
+            (should (string-search "Work does not exist" (cadr err))))
+          (should (equal work pumice-default-root))
+          ;; Taken off the list, it stops being the default.
+          (setq pumice-vault-directories (list notes))
+          (should (equal notes (pumice--root (pumice-current-vault)))))
+      (delete-directory parent t))))
+
+(ert-deftest pumice-test-switch-to-a-missing-vault ()
+  "Switching to a listed folder that is missing keeps the old default."
+  (pumice-test-with-vault
+    (let* ((gone (file-name-as-directory
+                  (expand-file-name "pumice-gone" temporary-file-directory)))
+           (pumice-vault-directories (list root gone)))
+      (cl-letf (((symbol-function 'completing-read)
+                 (lambda (&rest _) "pumice-gone")))
+        (should-error (pumice-switch-vault) :type 'user-error))
+      (should (equal root pumice-default-root))
+      (should-not (file-exists-p gone)))))
+
 (ert-deftest pumice-test-random-with-no-notes ()
   "Picking a random note from an empty vault says so in words."
   (let* ((root (file-name-as-directory

@@ -148,8 +148,16 @@ them act on the vault they are showing.")
 folders, such as (\"~/Notes\")"))
 
 (defun pumice--default-root ()
-  "Return the fallback vault root, choosing one on first use."
-  (or pumice-default-root
+  "Return the fallback vault root, choosing one on first use.
+A root chosen earlier is kept while its folder exists, or while it is
+still one of the known vaults.  One that is neither was named by mistake,
+or has since been taken off the list, and another is chosen in its place."
+  (or (and pumice-default-root
+           (or (file-directory-p pumice-default-root)
+               (member (file-name-as-directory
+                        (expand-file-name pumice-default-root))
+                       (pumice-vault-roots)))
+           pumice-default-root)
       (setq pumice-default-root
             (or (and (not pumice-vault-directories)
                      (car (cl-find-if #'cdr (pumice--registry))))

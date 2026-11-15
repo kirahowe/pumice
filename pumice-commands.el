@@ -253,9 +253,13 @@ With a prefix argument, open it in the OTHER-WINDOW."
          ;; A prompt with nothing to choose could only be quit.
          (name (if roots
                    (completing-read "Vault: " roots nil t)
-                 (pumice--no-vault))))
-    (setq pumice-default-root (cdr (assoc name roots)))
-    (pumice--find (pumice-vault-at pumice-default-root))))
+                 (pumice--no-vault)))
+         (root (cdr (assoc name roots)))
+         ;; Loaded before it becomes the default.  A folder that is listed
+         ;; but missing fails here, and the old default stays.
+         (vault (pumice-vault-at root)))
+    (setq pumice-default-root root)
+    (pumice--find vault)))
 
 ;;; Links
 
