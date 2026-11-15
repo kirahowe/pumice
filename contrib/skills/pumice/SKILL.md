@@ -49,6 +49,7 @@ pumice log "Sent the invoice"          # timestamped line under today's Log head
 pumice new "Title" --template "Meeting" --stdin < body.md
 pumice set "Some note" status=done
 pumice rename "Old name" "New name"    # rewrites every link to the note
+pumice rename "Note" "Archive/Note"    # a / in the new name moves the note
 pumice trash "Some note"
 ```
 
