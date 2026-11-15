@@ -13,7 +13,8 @@ Emacs, and would rather not run a second, heavier app to read them.
 ![Jumping to a note with a live preview, following a link and coming back, the backlinks panel turning an unlinked mention into a link, the folder tree, note names completing after two square brackets, a rename that rewrites three links, a line logged to today's note, and the same vault queried from the shell](https://github.com/kirahowe/pumice/releases/latest/download/demo.gif)
 
 The recording uses the Atom One Dark theme and the optional packages
-vertico, consult, corfu, and markdown-mode. Pumice doesn't need any of them.
+vertico, marginalia, orderless, consult, corfu, and markdown-mode. Pumice
+doesn't need any of them.
 
 Pumice works on your notes where they are, as plain Markdown with
 `[[wikilinks]]`. It reads each vault's `.obsidian` settings to find out where
