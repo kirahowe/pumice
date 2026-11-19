@@ -477,6 +477,130 @@ Create it, or change `pumice-vault-directories'"
       (pumice-previous-link 2)
       (should (looking-at-p "\\[\\[Ongoing work")))))
 
+;;; Pasting images
+
+(defconst pumice-test--png (unibyte-string #x89 ?P ?N ?G #x0d #x0a #x1a #x0a #xff #x00)
+  "Bytes that stand in for a PNG, with some that no text encoding keeps.")
+
+(defmacro pumice-test-with-app (json &rest body)
+  "Run BODY after replacing the fixture vault's app.json with JSON."
+  (declare (indent 1) (debug t))
+  `(progn
+     (write-region ,json nil (expand-file-name ".obsidian/app.json" root)
+                   nil 'silent)
+     (setf (pumice--settings v) nil)
+     ,@body))
+
+(defmacro pumice-test-pasting (&rest body)
+  "Run BODY with the clock pinned to 2026-11-17 14:30:05."
+  (declare (indent 0) (debug t))
+  `(cl-letf (((symbol-function 'pumice--now)
+              (lambda () (encode-time '(5 30 14 17 11 2026 nil -1 nil)))))
+     ,@body))
+
+(defun pumice-test--bytes (v rel)
+  "Return the raw bytes of REL in V."
+  (with-temp-buffer
+    (set-buffer-multibyte nil)
+    (let ((coding-system-for-read 'no-conversion))
+      (insert-file-contents-literally (expand-file-name rel (pumice--root v))))
+    (buffer-string)))
+
+(ert-deftest pumice-test-attachment-folder ()
+  (pumice-test-with-vault
+    (let ((note (expand-file-name "Notes/Work/Trellis.md" root)))
+      (pcase-dolist (`(,setting . ,expected)
+                     `((nil . "") ("/" . "") ("Attachments" . "Attachments/")
+                       ("/Media/Images/" . "Media/Images/")
+                       ("./" . "Notes/Work/") ("./assets" . "Notes/Work/assets/")))
+        (pumice-test-with-app
+            (if setting (json-encode `((attachmentFolderPath . ,setting))) "{}")
+          (should (equal (file-name-as-directory (expand-file-name expected root))
+                         (pumice-attachment-folder v note))))))))
+
+(ert-deftest pumice-test-save-image ()
+  (pumice-test-with-vault
+    (pumice-test-pasting
+      (pumice-test-with-app "{\"attachmentFolderPath\":\"Attachments\"}"
+        (pumice-test-in-note "Home.md"
+          (pumice-save-image pumice-test--png 'image/png)
+          (should (looking-back
+                   (regexp-quote "![[Pasted image 20261117143005.png]]")
+                   (line-beginning-position)))
+          (should (equal pumice-test--png
+                         (pumice-test--bytes
+                          v "Attachments/Pasted image 20261117143005.png")))
+          ;; A second paste in the same second takes the next free name,
+          ;; and the index knows both, so the links resolve.
+          (pumice-save-image pumice-test--png 'image/png)
+          (should (looking-back (regexp-quote "20261117143005 1.png]]")
+                                (line-beginning-position)))
+          (should (pumice-resolve-file v "Pasted image 20261117143005 1.png")))))))
+
+(defun pumice-test--pasted-link (app &optional existing)
+  "Paste into Notes/Work/Trellis.md under APP's settings and return the link.
+EXISTING names a file to put in the vault first."
+  (pumice-test-with-vault
+    (pumice-test-pasting
+      (when existing
+        (write-region "" nil (expand-file-name existing root) nil 'silent)
+        (pumice-refresh v t))
+      (pumice-test-with-app app
+        (pumice-test-in-note "Notes/Work/Trellis.md"
+          (goto-char (point-max))
+          (let ((start (point)))
+            (pumice-save-image pumice-test--png 'image/png)
+            (buffer-substring-no-properties start (point))))))))
+
+(ert-deftest pumice-test-save-image-link-settings ()
+  (should (equal "![[Pasted image 20261117143005.png]]"
+                 (pumice-test--pasted-link "{\"attachmentFolderPath\":\"Attachments\"}")))
+  (should (equal "![](../../Attachments/Pasted%20image%2020261117143005.png)"
+                 (pumice-test--pasted-link
+                  "{\"attachmentFolderPath\":\"Attachments\",\"newLinkFormat\":\"relative\",\"useMarkdownLinks\":true}")))
+  (should (equal "![[Notes/Work/Pasted image 20261117143005.png]]"
+                 (pumice-test--pasted-link
+                  "{\"attachmentFolderPath\":\"./\",\"newLinkFormat\":\"absolute\",\"useMarkdownLinks\":false}")))
+  ;; The shortest link is the bare name unless another file has it too.
+  (should (equal "![[Attachments/Pasted image 20261117143005.png]]"
+                 (pumice-test--pasted-link
+                  "{\"attachmentFolderPath\":\"Attachments\"}"
+                  "Notes/Pasted image 20261117143005.png"))))
+
+(ert-deftest pumice-test-save-image-new-folder ()
+  (pumice-test-with-vault
+    (pumice-test-pasting
+      (pumice-test-with-app "{\"attachmentFolderPath\":\"./assets\"}"
+        (pumice-test-in-note "Notes/Work/Trellis.md"
+          (should-not (file-directory-p (expand-file-name "Notes/Work/assets" root)))
+          (should (equal "Saved Notes/Work/assets/Pasted image 20261117143005.png \
+(created the folder Notes/Work/assets)"
+                         (pumice-save-image pumice-test--png 'image/png)))
+          (should (file-exists-p
+                   (expand-file-name
+                    "Notes/Work/assets/Pasted image 20261117143005.png" root))))))))
+
+(ert-deftest pumice-test-yank-media-handler ()
+  (pumice-test-with-vault
+    (pumice-test-in-note "Home.md"
+      (should (eq #'pumice--yank-image
+                  (alist-get 'image/png yank-media--registered-handlers)))
+      (pumice-mode -1)
+      (should-not (rassq #'pumice--yank-image yank-media--registered-handlers))
+      (pumice-mode 1))))
+
+(ert-deftest pumice-test-paste-image ()
+  (pumice-test-with-vault
+    (pumice-test-pasting
+      (pumice-test-in-note "Home.md"
+        (cl-letf (((symbol-function 'gui-get-selection)
+                   (lambda (_ type) (and (eq type 'image/jpeg) pumice-test--png))))
+          (pumice-paste-image))
+        (should (looking-back (regexp-quote "20261117143005.jpg]]")
+                              (line-beginning-position)))
+        (cl-letf (((symbol-function 'gui-get-selection) #'ignore))
+          (should-error (pumice-paste-image) :type 'user-error))))))
+
 ;;; Templates, daily notes, capture
 
 (ert-deftest pumice-test-expand-template ()

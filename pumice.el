@@ -89,6 +89,7 @@ Nothing binds this map by default.  For example:
   "c" #'pumice-capture
   "i" #'pumice-insert-link
   "T" #'pumice-insert-template
+  "p" #'pumice-paste-image
   "x" #'pumice-extract
   "r" #'pumice-rename
   "X" #'pumice-trash

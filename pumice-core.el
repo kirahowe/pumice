@@ -198,7 +198,13 @@ The index is brought up to date first unless NO-REFRESH is non-nil."
                 (and (equal (alist-get 'newFileLocation app) "folder")
                      (funcall nonempty (alist-get 'newFileFolderPath app)))
                 :new-note-current
-                (equal (alist-get 'newFileLocation app) "current")))))
+                (equal (alist-get 'newFileLocation app) "current")
+                :attachment-folder
+                (funcall nonempty (alist-get 'attachmentFolderPath app))
+                :markdown-links (alist-get 'useMarkdownLinks app)
+                :link-format (or (funcall nonempty
+                                          (alist-get 'newLinkFormat app))
+                                 "shortest")))))
 
 (defun pumice-setting (vault key)
   "Return VAULT's setting KEY."

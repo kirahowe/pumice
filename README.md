@@ -52,6 +52,9 @@ With pumice, you can:
 - Keep daily notes in the vault's own folder, date format, and template.
   Commands open the note for yesterday, tomorrow, or any date, and the next
   or previous daily note that exists.
+- Paste an image from the clipboard into a note. Pumice saves it where the
+  vault keeps new attachments, names it as Obsidian would, and embeds it
+  at point.
 - Insert templates that use Obsidian's `{{title}}`, `{{date}}`, and `{{time}}`
   variables.
 - Rename or move a note and rewrite every link to it, extract a region into
@@ -312,6 +315,7 @@ The following keys work after the prefix that you bound to
 | `c` | Start a new note |
 | `i` | Insert a link to a note. If a region is active, it becomes the link text |
 | `T` | Insert a template |
+| `p` | Paste the image on the clipboard as an attachment, and embed it at point. In a note, `M-x yank-media` does the same |
 | `x` | Extract the region into a new note and leave a link in its place |
 | `r` | Rename or move the note, and rewrite the links to it |
 | `X` | Move the note to the vault's trash |
@@ -452,6 +456,11 @@ Pumice shares a vault with Obsidian in these ways:
   `WW`, and `GGGG`.
 - Links that pumice writes use the note's name when the name is unambiguous,
   and the note's path from the vault root when it isn't.
+- A pasted image goes where the vault's "Default location for new
+  attachments" setting says, and is named `Pasted image` followed by the
+  date and time, as in Obsidian. The embed follows the "Use `[[Wikilinks]]`"
+  and "New link format" settings. If the attachment folder doesn't exist
+  yet, pumice creates it and says so.
 - Deleted notes go to the vault's `.trash` folder, which is one of Obsidian's
   own options for deleted files.
 

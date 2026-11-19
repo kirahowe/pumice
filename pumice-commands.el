@@ -21,6 +21,7 @@
 
 (require 'pumice-core)
 (require 'xref)
+(require 'url-util)
 
 (declare-function consult--read "consult")
 (declare-function consult--file-preview "consult")
@@ -360,6 +361,108 @@ The link is written as VAULT would resolve it from the current note."
   "Move to the previous link, or the COUNTth."
   (interactive "p")
   (pumice--next-link (- (or count 1))))
+
+;;; Pasting images
+
+(defconst pumice--image-types
+  '((image/png . "png") (image/jpeg . "jpg") (image/gif . "gif")
+    (image/webp . "webp"))
+  "Clipboard types saved as attachments, most wanted first, with extensions.")
+
+(defun pumice-attachment-folder (vault note-path)
+  "Return the folder where VAULT puts files pasted into NOTE-PATH.
+This is Obsidian's \"Default location for new attachments\": the vault
+root, a folder in the vault, the note's own folder (\"./\"), or a folder
+next to the note (\"./name\")."
+  (let ((setting (pumice-setting vault :attachment-folder))
+        (root (pumice--root vault)))
+    (file-name-as-directory
+     (cond ((or (null setting) (equal setting "/")) root)
+           ((or (equal setting ".") (string-prefix-p "./" setting))
+            (expand-file-name (substring setting (min 2 (length setting)))
+                              (file-name-directory note-path)))
+           (t (expand-file-name (string-trim setting "/+" "/+") root))))))
+
+(defun pumice--free-path (dir base ext)
+  "Return a path in DIR for BASE.EXT that no file has yet.
+Like Obsidian, a taken name gets \" 1\", \" 2\" and so on after BASE."
+  (let ((n 0) path)
+    (while (file-exists-p
+            (setq path (expand-file-name
+                        (if (zerop n) (format "%s.%s" base ext)
+                          (format "%s %d.%s" base n ext))
+                        dir)))
+      (setq n (1+ n)))
+    path))
+
+(defun pumice--attachment-link (vault path note-path)
+  "Return an embed of attachment PATH for the note at NOTE-PATH in VAULT.
+It is written the way VAULT's Obsidian settings ask: a wikilink or a
+Markdown link, with the shortest, relative, or vault-absolute path."
+  (let* ((rel (file-relative-name path (pumice--root vault)))
+         (name (file-name-nondirectory path))
+         (target
+          (pcase (pumice-setting vault :link-format)
+            ("relative" (file-relative-name path (file-name-directory note-path)))
+            ("absolute" rel)
+            (_ (if (cl-find-if (lambda (other)
+                                 (and (not (equal other rel))
+                                      (string-equal-ignore-case
+                                       (file-name-nondirectory other) name)))
+                               (pumice--files vault))
+                   rel
+                 name)))))
+    (if (pumice-setting vault :markdown-links)
+        (format "![](%s)" (url-hexify-string target (cons ?/ url-unreserved-chars)))
+      (format "![[%s]]" target))))
+
+(defun pumice-save-image (data type)
+  "Save image DATA of clipboard TYPE next to this note, and embed it at point.
+The file goes where the vault's Obsidian settings put new attachments,
+named the way Obsidian names a pasted image.  A missing attachment
+folder is created, and the message says so."
+  (let* ((note (or buffer-file-name
+                   (user-error "This buffer is not a note in a vault")))
+         (vault (pumice-current-vault))
+         (ext (or (alist-get type pumice--image-types)
+                  (user-error "Pumice does not save %s images" type)))
+         (dir (pumice-attachment-folder vault note))
+         (new-dir (not (file-directory-p dir)))
+         (path (pumice--free-path
+                dir (concat "Pasted image "
+                            (format-time-string "%Y%m%d%H%M%S" (pumice--now)))
+                ext)))
+    (when new-dir (make-directory dir t))
+    (let ((coding-system-for-write 'no-conversion))
+      (write-region data nil path nil 'silent nil 'excl))
+    (insert (pumice--attachment-link vault path note))
+    (pumice-refresh vault t)
+    (message "Saved %s%s" (file-relative-name path (pumice--root vault))
+             (if new-dir
+                 (format " (created the folder %s)"
+                         (directory-file-name
+                          (file-relative-name dir (pumice--root vault))))
+               ""))))
+
+(defun pumice--yank-image (type data)
+  "Save image DATA of TYPE as an attachment.  A `yank-media' handler."
+  (pumice-save-image data type))
+
+;;;###autoload
+(defun pumice-paste-image ()
+  "Save the image on the clipboard as an attachment and embed it at point.
+This is what \\[yank-media] does in a note, for when the clipboard also
+holds text."
+  (interactive)
+  (unless (pumice-root-for buffer-file-name)
+    (user-error "This buffer is not a note in a vault"))
+  (let ((found (cl-loop for (type . _) in pumice--image-types
+                        for data = (ignore-errors
+                                     (gui-get-selection 'CLIPBOARD type))
+                        when (and (stringp data) (not (string-empty-p data)))
+                        return (cons type data))))
+    (unless found (user-error "There is no image on the clipboard"))
+    (pumice-save-image (cdr found) (car found))))
 
 ;;; Templates
 

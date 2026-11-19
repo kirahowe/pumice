@@ -25,6 +25,7 @@
 (require 'pumice-core)
 (require 'pumice-commands)
 (require 'pumice-refactor)
+(require 'yank-media)
 
 (declare-function markdown-code-block-at-pos "markdown-mode")
 
@@ -193,8 +194,13 @@ The rest of the commands are in `pumice-command-map'."
         (add-hook 'completion-at-point-functions
                   #'pumice-completion-at-point nil t)
         (add-hook 'after-save-hook #'pumice--after-save nil t)
-        (add-hook 'before-save-hook #'pumice-ensure-directory nil t))
+        (add-hook 'before-save-hook #'pumice-ensure-directory nil t)
+        (yank-media-handler (mapcar #'car pumice--image-types)
+                            #'pumice--yank-image))
     (font-lock-remove-keywords nil pumice--font-lock-keywords)
+    (setq-local yank-media--registered-handlers
+                (cl-remove #'pumice--yank-image yank-media--registered-handlers
+                           :key #'cdr))
     (remove-hook 'completion-at-point-functions #'pumice-completion-at-point t)
     (remove-hook 'after-save-hook #'pumice--after-save t)
     (remove-hook 'before-save-hook #'pumice-ensure-directory t))
