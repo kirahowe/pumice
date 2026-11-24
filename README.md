@@ -430,6 +430,8 @@ and puts the commands under `SPC a N`. To use a different key, set
 (pumice :variables pumice-leader-key "on")
 ```
 
+In a note, `SPC m i p` also pastes the image on the clipboard.
+
 ## Performance
 
 Pumice keeps its index in memory and rebuilds it from the files when Emacs

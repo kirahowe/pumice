@@ -17,6 +17,7 @@
 (defvar pumice-leader-key)
 (declare-function spacemacs/declare-prefix "core-keybindings")
 (declare-function spacemacs/set-leader-keys "core-keybindings")
+(declare-function spacemacs/set-leader-keys-for-minor-mode "core-keybindings")
 
 (defconst pumice-packages
   '((pumice :location (recipe :fetcher github :repo "kirahowe/pumice")))
@@ -33,6 +34,10 @@
                 '(vim hybrid))
       (require 'pumice-evil))
     (spacemacs/declare-prefix pumice-leader-key "pumice")
-    (spacemacs/set-leader-keys pumice-leader-key 'pumice-command-map)))
+    (spacemacs/set-leader-keys pumice-leader-key 'pumice-command-map)
+    ;; In a note, pasting an image sits with the markdown layer's other
+    ;; insert keys under the major-mode leader.
+    (spacemacs/set-leader-keys-for-minor-mode 'pumice-mode
+      "ip" 'pumice-paste-image)))
 
 ;;; packages.el ends here
