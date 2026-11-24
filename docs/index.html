@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pumice: Obsidian vaults in Emacs</title>
+<meta name="description" content="An Emacs package for working in an Obsidian vault without running Obsidian. Plain Markdown, wikilinks, backlinks, daily notes and renames that keep links working, plus a command line for scripts and coding agents.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap bar">
+    <a class="brand" href="./" aria-label="pumice home">
+      <img src="favicon.svg" alt="" width="28" height="28">
+      <span>pumice</span>
+    </a>
+    <nav aria-label="Main">
+      <a href="#features">Features</a>
+      <a href="#obsidian">Obsidian</a>
+      <a href="#cli">Command line</a>
+      <a href="#install">Install</a>
+      <a href="https://github.com/kirahowe/pumice">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+  <section class="hero wrap" aria-labelledby="hero-title">
+    <img class="hero-icon" src="favicon.svg" alt="" width="96" height="96">
+    <h1 id="hero-title">pumice</h1>
+    <p class="pitch">Your Obsidian vault, in Emacs.</p>
+    <p class="lede">An Emacs package for working in an Obsidian vault without running Obsidian. Your notes stay plain Markdown with <code>[[wikilinks]]</code>, right where they are, and pumice adds nothing of its own to the vault.</p>
+
+    <div class="snippet" data-copy>
+      <pre><code>(use-package pumice
+  :vc (:url "https://github.com/kirahowe/pumice")
+  :defer t
+  :init
+  (pumice-global-mode 1)
+  (keymap-global-set "C-c n" 'pumice-command-map))</code></pre>
+      <button type="button" class="copy" aria-label="Copy the use-package form">Copy</button>
+    </div>
+
+    <p class="actions">
+      <a class="button primary" href="https://github.com/kirahowe/pumice">View on GitHub</a>
+      <a class="button" href="#install">Other ways to install</a>
+    </p>
+    <p class="meta">Free software (GPL-3.0-or-later). Emacs 29.1 or later, and no other dependencies.</p>
+  </section>
+
+  <figure class="shot shot-hero wrap">
+    <div class="window window-dark">
+      <div class="titlebar" aria-hidden="true">
+        <span class="lights"><i></i><i></i><i></i></span>
+        <span class="title">Emacs</span>
+      </div>
+      <img src="https://github.com/kirahowe/pumice/releases/latest/download/demo.gif" width="1982" height="1128" loading="lazy" alt="Jumping to a note with a live preview, following a link and coming back, the backlinks panel turning an unlinked mention into a link, the folder tree, note names completing after two square brackets, a rename that rewrites three links, a line logged to today's note, and the same vault queried from the shell.">
+    </div>
+    <figcaption>Jump to a note, follow links, link an unlinked mention from the backlinks panel, rename a note and its links, log to today's note, then ask the same vault questions from the shell. The recording uses optional completion packages that pumice doesn't need.</figcaption>
+  </figure>
+
+  <section id="features" class="wrap section" aria-labelledby="features-title">
+    <h2 id="features-title">Features</h2>
+    <ul class="grid">
+      <li>
+        <h3>Jump to any note</h3>
+        <p>Find a note by name or alias. If nothing matches, pumice starts a new note in the folder your vault uses for new notes.</p>
+      </li>
+      <li>
+        <h3>Links that resolve like Obsidian's</h3>
+        <p>Follow <code>[[Note]]</code>, <code>[[Note#Heading]]</code>, <code>[[Note|text]]</code>, <code>![[embeds]]</code> and Markdown links. Each link is coloured by whether it resolves, even when two notes share a name.</p>
+      </li>
+      <li>
+        <h3>Completion</h3>
+        <p>Note names after <code>[[</code>, headings after <code>[[Note#</code>, and tags after <code>#</code>.</p>
+      </li>
+      <li>
+        <h3>Backlinks panel</h3>
+        <p>A side panel that follows the note you're in: lines that link to it, lines that mention it without linking (one key makes them links), and its outgoing links.</p>
+      </li>
+      <li>
+        <h3>Daily notes</h3>
+        <p>Your vault's own folder, date format and template. Open today, yesterday, tomorrow or any date, step between daily notes, or log a timestamped line without leaving the buffer you're in.</p>
+      </li>
+      <li>
+        <h3>Renames that keep links working</h3>
+        <p>Rename or move a note and every link to it is rewritten. Extract a region into a note of its own, or move a note to the vault's <code>.trash</code>.</p>
+      </li>
+      <li>
+        <h3>Folder tree, tags and search</h3>
+        <p>Browse the vault in a side window, pick a note by tag (nested tags and frontmatter tags included), or search the text of every note.</p>
+      </li>
+      <li>
+        <h3>Templates and pasted images</h3>
+        <p>Insert templates that use <code>{{title}}</code>, <code>{{date}}</code> and <code>{{time}}</code>. Paste an image from the clipboard and it's saved and named as Obsidian would.</p>
+      </li>
+    </ul>
+  </section>
+
+  <section id="obsidian" class="band" aria-labelledby="obsidian-title">
+    <div class="wrap split">
+      <div class="prose">
+        <h2 id="obsidian-title">Shares the vault with Obsidian</h2>
+        <p>Pumice reads each vault's <code>.obsidian</code> settings to learn where daily notes, templates, new notes and attachments go. Obsidian on your phone or another computer keeps working on the same files.</p>
+        <ul class="checks">
+          <li>Pumice never writes to <code>.obsidian</code> and never adds a cache or an index to the vault. Its index lives in memory.</li>
+          <li>If Obsidian has run on this computer, pumice finds your vaults on its own. Otherwise, list them in <code>pumice-vault-directories</code>. A plain folder of Markdown works too.</li>
+          <li>Links it writes use the note's name when that's unambiguous, and its path when it isn't. Deleted notes go to <code>.trash</code>.</li>
+        </ul>
+        <p class="note">The name comes from the rock: pumice is the same volcanic glass as obsidian, with most of the weight taken out.</p>
+      </div>
+      <div class="diagram" role="img" aria-label="Emacs with pumice, the pumice command line, and Obsidian on a phone or another computer all read and write the same vault folder.">
+        <div class="node">Emacs with pumice</div>
+        <div class="node">pumice command line</div>
+        <div class="node">Obsidian on a phone or another computer</div>
+        <div class="links" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div class="node vault">Vault folder<small>Markdown notes and <code>.obsidian</code> settings</small></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="cli" class="wrap section" aria-labelledby="cli-title">
+    <div class="split split-top">
+      <div class="prose">
+        <h2 id="cli-title">A command line for scripts and agents</h2>
+        <p><code>bin/pumice</code> runs the same index in a batch Emacs. It doesn't need a running Emacs or a running Obsidian, and it doesn't read your init file.</p>
+        <p>List results come one per line, with paths relative to the vault root, or as JSON with <code>--json</code>. <code>pumice help</code> lists every command.</p>
+        <p>A coding agent can read and change your notes through it. The repository includes a <a href="https://github.com/kirahowe/pumice/tree/main/contrib/skills/pumice">skill for Claude Code</a>, and the <a href="https://github.com/kirahowe/pumice#other-agents">README has a snippet</a> for any agent's <code>AGENTS.md</code>.</p>
+        <p class="note">On a synthetic vault of 5,000 notes, a cold <code>pumice backlinks</code> takes 0.9 seconds. On a real vault of 291 notes, a command takes 0.3.</p>
+      </div>
+      <pre class="code terminal"><code><span class="c"># notes tagged project, still active</span>
+pumice list --tag project --where status=active
+pumice backlinks "Weekly Review"
+pumice tasks --folder Projects
+
+<span class="c"># path of today's note, created if missing</span>
+pumice daily
+pumice log "Sent the invoice"
+
+pumice new "Title" --template "Meeting" --stdin &lt; body.md
+pumice set "Some note" status=done
+
+<span class="c"># rewrites every link to the note</span>
+pumice rename "Old name" "New name"
+
+<span class="c"># links that lead nowhere</span>
+pumice unresolved</code></pre>
+    </div>
+  </section>
+
+  <section id="install" class="band" aria-labelledby="install-title">
+    <div class="wrap">
+      <h2 id="install-title">Install</h2>
+      <div class="install">
+        <div>
+          <h3>Emacs 30 or later</h3>
+          <p>Add this to your init file. It installs the latest release; add <code>:rev :newest</code> after the URL to follow the main branch instead.</p>
+          <div class="snippet" data-copy>
+            <pre><code>(use-package pumice
+  :vc (:url "https://github.com/kirahowe/pumice")
+  :defer t
+  :init
+  (pumice-global-mode 1)
+  (keymap-global-set "C-c n" 'pumice-command-map))</code></pre>
+            <button type="button" class="copy" aria-label="Copy the use-package form">Copy</button>
+          </div>
+          <p class="meta">Pumice doesn't bind <code>pumice-command-map</code> to any key, so <code>C-c n</code> is only a suggestion. Install <a href="https://jblevins.org/projects/markdown-mode/">markdown-mode</a> too if you want Markdown highlighting.</p>
+        </div>
+        <div>
+          <h3>Emacs 29</h3>
+          <p>Run <code>M-x package-vc-install</code>, enter <code>https://github.com/kirahowe/pumice</code>, and add the two lines from <code>:init</code> above to your init file. Without a package manager, clone the repository, add it to <code>load-path</code>, and <code>(require 'pumice)</code> before those lines.</p>
+        </div>
+        <div>
+          <h3>Then try it</h3>
+          <p>With the map on <code>C-c n</code>: <code>C-c n d</code> opens today's daily note, <code>C-c n n</code> jumps to a note or starts one, and <code>C-c n a</code> logs a line to today's note. If Obsidian has never run on this computer, name your vault first:</p>
+          <div class="snippet" data-copy>
+            <pre><code>(setq pumice-vault-directories '("~/Notes"))</code></pre>
+            <button type="button" class="copy" aria-label="Copy the vault setting">Copy</button>
+          </div>
+        </div>
+        <div>
+          <h3>The command line</h3>
+          <p>Link the script onto your <code>PATH</code> from the installed package (or from a clone, if you only want the command line):</p>
+          <div class="snippet" data-copy>
+            <pre><code>mkdir -p ~/.local/bin
+ln -s ~/.emacs.d/elpa/pumice/bin/pumice ~/.local/bin/pumice
+pumice vaults</code></pre>
+            <button type="button" class="copy" aria-label="Copy the command-line install commands">Copy</button>
+          </div>
+          <p class="meta">If your Emacs directory is <code>~/.config/emacs</code>, the package is under <code>~/.config/emacs/elpa/pumice</code>. On a computer without Obsidian, set <code>PUMICE_VAULT</code> in your shell profile.</p>
+        </div>
+        <div>
+          <h3>Evil and Spacemacs</h3>
+          <p>Vim keys are opt-in with <code>(require 'pumice-evil)</code>. A Spacemacs layer in <code>contrib/spacemacs/pumice</code> puts the commands under <code>SPC a N</code>.</p>
+        </div>
+      </div>
+      <p class="more">The <a href="https://github.com/kirahowe/pumice#readme">README</a> has every key, the optional packages pumice uses when they're installed, and how to keep Emacs's backup files out of the vault.</p>
+    </div>
+  </section>
+
+  <section id="limits" class="wrap section" aria-labelledby="limits-title">
+    <h2 id="limits-title">What it doesn't do</h2>
+    <p class="plain">Pumice doesn't render embeds or Markdown inline, draw a graph, run Obsidian plugins, or sync anything. Dataview queries, canvases and <code>.base</code> files appear as files you can link to, not as Obsidian would draw them. Frontmatter is read as the flat properties Obsidian writes, not as arbitrary YAML.</p>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap bar">
+    <p>pumice is free software under the GPL-3.0-or-later.</p>
+    <p><a href="https://github.com/kirahowe/pumice">Source on GitHub</a></p>
+  </div>
+</footer>
+
+<script>
+document.querySelectorAll('[data-copy]').forEach(function (box) {
+  var button = box.querySelector('button');
+  var code = box.querySelector('code');
+  button.addEventListener('click', function () {
+    var done = function () {
+      button.textContent = 'Copied';
+      setTimeout(function () { button.textContent = 'Copy'; }, 1600);
+    };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(code.textContent).then(done, function () {});
+    } else {
+      var range = document.createRange();
+      range.selectNodeContents(code);
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      try { if (document.execCommand('copy')) done(); } catch (e) {}
+    }
+  });
+});
+</script>
+</body>
+</html>
