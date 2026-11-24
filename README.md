@@ -23,11 +23,12 @@ the vault. Obsidian on your phone or on another computer can keep working on
 the same files.
 
 ```mermaid
+%%{init: {"flowchart": {"htmlLabels": false}}}%%
 flowchart LR
-    vault[("Vault folder: Markdown notes and .obsidian settings")]
+    vault[("Vault folder:<br>Markdown notes and<br>.obsidian settings")]
     emacs["Emacs with pumice"] <--> vault
     cli["pumice command line"] <--> vault
-    phone["Obsidian on a phone or another computer"] <--> vault
+    phone["Obsidian on a phone<br>or another computer"] <--> vault
 ```
 
 The name comes from the rock: pumice is the same volcanic glass as obsidian,
