@@ -195,12 +195,9 @@ The rest of the commands are in `pumice-command-map'."
                   #'pumice-completion-at-point nil t)
         (add-hook 'after-save-hook #'pumice--after-save nil t)
         (add-hook 'before-save-hook #'pumice-ensure-directory nil t)
-        (yank-media-handler (mapcar #'car pumice--image-types)
-                            #'pumice--yank-image))
+        (pumice--take-over-yank-media))
     (font-lock-remove-keywords nil pumice--font-lock-keywords)
-    (setq-local yank-media--registered-handlers
-                (cl-remove #'pumice--yank-image yank-media--registered-handlers
-                           :key #'cdr))
+    (pumice--give-back-yank-media)
     (remove-hook 'completion-at-point-functions #'pumice-completion-at-point t)
     (remove-hook 'after-save-hook #'pumice--after-save t)
     (remove-hook 'before-save-hook #'pumice-ensure-directory t))

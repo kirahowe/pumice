@@ -581,13 +581,35 @@ EXISTING names a file to put in the vault first."
                     "Notes/Work/assets/Pasted image 20261117143005.png" root))))))))
 
 (ert-deftest pumice-test-yank-media-handler ()
+  ;; markdown-mode registers its own handler for "image/.*" before
+  ;; pumice-mode starts.  Pumice's has to win for the types it saves.
   (pumice-test-with-vault
-    (pumice-test-in-note "Home.md"
-      (should (eq #'pumice--yank-image
-                  (alist-get 'image/png yank-media--registered-handlers)))
-      (pumice-mode -1)
-      (should-not (rassq #'pumice--yank-image yank-media--registered-handlers))
-      (pumice-mode 1))))
+    (pumice-test-pasting
+      (pumice-test-in-note "Home.md"
+        (let* ((other nil)
+               (handler (lambda (type _data) (setq other type))))
+          (pumice-mode -1)
+          (yank-media-handler "image/.*" handler)
+          (pumice-mode 1)
+          (cl-letf (((symbol-function 'gui-get-selection)
+                     (lambda (_ type)
+                       (if (eq type 'TARGETS) [image/png]
+                         (and (eq type 'image/png) pumice-test--png))))
+                    ((symbol-function 'image-type-available-p) #'always))
+            (yank-media)
+            (should (looking-back (regexp-quote "20261117143005.png]]")
+                                  (line-beginning-position)))
+            (should-not other)
+            ;; A type pumice does not save goes to the other handler.
+            ;; yank-media only picks SVG when asked, so call the entry.
+            (funcall (cdr (assoc "image/.*" yank-media--registered-handlers))
+                     'image/svg+xml "<svg/>")
+            (should (eq 'image/svg+xml other)))
+          (pumice-mode -1)
+          (should-not (rassq #'pumice--yank-image yank-media--registered-handlers))
+          (should (eq handler (cdr (assoc "image/.*"
+                                          yank-media--registered-handlers))))
+          (pumice-mode 1))))))
 
 (ert-deftest pumice-test-paste-image ()
   (pumice-test-with-vault

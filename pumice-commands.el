@@ -444,9 +444,62 @@ folder is created, and the message says so."
                           (file-relative-name dir (pumice--root vault))))
                ""))))
 
+(defvar yank-media--registered-handlers)
+
+(defvar-local pumice--displaced-yank-handlers nil
+  "The `yank-media' entries that `pumice-mode' took over, as (TYPE . HANDLER).")
+
+(defun pumice--yank-handles-p (handled type)
+  "Return non-nil if a `yank-media' entry for HANDLED takes TYPE.
+HANDLED is a MIME type symbol or a regexp, as `yank-media-handler'
+allows."
+  (if (symbolp handled) (eq handled type)
+    (string-match-p handled (symbol-name type))))
+
 (defun pumice--yank-image (type data)
-  "Save image DATA of TYPE as an attachment.  A `yank-media' handler."
-  (pumice-save-image data type))
+  "Save image DATA of TYPE as an attachment.  A `yank-media' handler.
+A type that pumice does not save goes to the handler it took over."
+  (if (alist-get type pumice--image-types)
+      (pumice-save-image data type)
+    (let ((old (cl-find-if (lambda (entry)
+                             (pumice--yank-handles-p (car entry) type))
+                           pumice--displaced-yank-handlers)))
+      (if old (funcall (cdr old) type data)
+        (user-error "Pumice does not save %s images" type)))))
+
+(defun pumice--take-over-yank-media ()
+  "Make `yank-media' save pasted images the way `pumice-save-image' does.
+Another handler for those types, such as markdown-mode's, would
+otherwise win: `yank-media' does not say which of two matching
+handlers it calls.  So every entry that would take one of
+`pumice--image-types' is pointed at `pumice--yank-image', and the
+handler it had is kept for `pumice--give-back-yank-media'."
+  (let ((types (mapcar #'car pumice--image-types)))
+    (setq-local yank-media--registered-handlers
+                (mapcar (lambda (entry)
+                          (if (and (not (eq (cdr entry) #'pumice--yank-image))
+                                   (cl-some (lambda (type)
+                                              (pumice--yank-handles-p
+                                               (car entry) type))
+                                            types))
+                              (progn (push entry pumice--displaced-yank-handlers)
+                                     (cons (car entry) #'pumice--yank-image))
+                            entry))
+                        yank-media--registered-handlers))
+    (yank-media-handler types #'pumice--yank-image)))
+
+(defun pumice--give-back-yank-media ()
+  "Undo `pumice--take-over-yank-media'."
+  (setq-local yank-media--registered-handlers
+              (delq nil
+                    (mapcar (lambda (entry)
+                              (if (not (eq (cdr entry) #'pumice--yank-image))
+                                  entry
+                                (when-let* ((old (assoc (car entry)
+                                                        pumice--displaced-yank-handlers)))
+                                  (cons (car entry) (cdr old)))))
+                            yank-media--registered-handlers)))
+  (setq pumice--displaced-yank-handlers nil))
 
 ;;;###autoload
 (defun pumice-paste-image ()
